@@ -207,7 +207,10 @@ html.dark .nav-lock-btn.unlocked:hover { background: #267A48; border-color: #267
   position: fixed;
   inset: 0;
   background: #000;
-  z-index: 999;
+  z-index: 99999;
+  display: flex !important;
+  visibility: visible;
+  opacity: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4787,12 +4790,17 @@ async function loadState() {
     (cloudData?.quotation?.projects?.length || 0) +
     (cloudData?.projects?.length            || 0);
 
+  // Detect manual page refresh — on reload always prefer cloud
+  const isManualRefresh = !!(window.performance?.navigation?.type === 1 ||
+    performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload');
+
   // Local wins only when its version counter is strictly higher AND this device
   // explicitly pushed that version (prevents a stale tab beating a newer device).
+  // On manual refresh, cloud always wins.
   const localWins = !!(localData && cloudData &&
     localVer > cloudVer &&
     localWasExplicitlyPushed &&
-    localProjectCount >= cloudProjectCount);
+    !isManualRefresh);
 
   if (localWins) {
     S = localData;
@@ -4857,7 +4865,7 @@ async function _silentCloudPull() {
   // Route to Drive when flag is enabled
   if (USE_DRIVE_STORAGE) { await _driveSilentPull(); return; }
   try {
-    const res = await fetch(BIN_URL + '/latest', { headers: { 'X-Master-Key': BIN_KEY } });
+    const res = await fetch(BIN_URL + '/latest', { headers: { 'X-Master-Key': BIN_KEY }, cache: 'no-store' });
     if (!res.ok) return;
     const cloudData = (await res.json()).record;
     if (!cloudData) return;
@@ -5097,11 +5105,11 @@ window.addEventListener('focus', async () => {
   await _silentCloudPull();
 });
 
-/* FIX 1D — Poll every 2 minutes while page is visible */
+/* FIX 1D — Poll every 30 seconds while page is visible */
 setInterval(async () => {
   if (document.visibilityState !== 'visible') return;
   await _silentCloudPull();
-}, 120000);
+}, 30000);
 
 /* FIX 1E — Pull on pageshow (iOS Safari bfcache back/forward) */
 window.addEventListener('pageshow', async e => {
@@ -5556,7 +5564,7 @@ async function _printHtmlMobile(html, filename, orientation) {
       (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 
     const pdfOpts = {
-      margin: [6, 6, 10, 6], // [top, right, bottom, left] mm — extra bottom for page number
+      margin: [12, 12, 20, 12], // [top, right, bottom, left] mm — extra bottom for page number
       filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
@@ -12292,14 +12300,20 @@ function exportInvoicePdf(item) {
   }).catch(() => {});
 
   // Hard 8s timeout — prevents iOS Safari boot hang if cloud fetch stalls
-  await Promise.race([
-    loadState(),
-    new Promise(resolve => setTimeout(() => {
-      console.warn('loadState() timed out — using local data');
-      try { const raw = localStorage.getItem('fa_work_v3'); if (raw && !S._version) S = JSON.parse(raw); } catch(e) {}
-      resolve();
-    }, 8000))
-  ]);
+  const _loadStart = Date.now();
+  try {
+    await Promise.race([
+      loadState(),
+      new Promise(resolve => setTimeout(() => {
+        console.warn('loadState() timed out — using local data');
+        try { const raw = localStorage.getItem('fa_work_v3'); if (raw && !S._version) S = JSON.parse(raw); } catch(e) {}
+        resolve();
+      }, 8000))
+    ]);
+  } catch(err) {
+    console.error('loadState failed:', err);
+    try { const raw = localStorage.getItem('fa_work_v3'); if (raw) S = JSON.parse(raw); } catch(e) {}
+  }
   loadAccounts();
   // Apply synced cell size preference (default xs)
   document.documentElement.style.setProperty('--cell-font', CELL_SIZES[S.cellSize || 'xs'].font);
@@ -12350,6 +12364,11 @@ function exportInvoicePdf(item) {
     }
   }, true); // capture phase — fires before any other handler
 
+  // Minimum 500ms loading animation — ensures visible on fast loads
+  const _loadElapsed = Date.now() - _loadStart;
+  if (_loadElapsed < 500) {
+    await new Promise(r => setTimeout(r, 500 - _loadElapsed));
+  }
   hideLoading();
   // Sync lock icon to restored edit-mode state
   _setLockIcon(document.body.classList.contains('edit-mode'));
@@ -13953,7 +13972,7 @@ table.main td{border:1px solid #e8e8e8;padding:5px 7px;font-size:10px;vertical-a
 .pdf-sign{text-align:center;margin-top:22px;font-size:11px;font-weight:600;color:#888}
 </style>
 </head><body>
-<div style="width:100%;padding:8px 10px;box-sizing:border-box">
+<div style="width:100%;padding:16px 20px;box-sizing:border-box">
 <div class="pdf-hdr">
   <div class="pdf-hdr-left">
     <div class="pdf-type">Production Quotation</div>
