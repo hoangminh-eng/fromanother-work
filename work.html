@@ -5546,23 +5546,9 @@ async function _printHtmlMobile(html, filename, orientation) {
     }
 
     if (isIOS && newTab) {
-      // Write PDF into the already-open tab — replaces the loading screen
-      newTab.document.open();
-      newTab.document.write(
-        '<!DOCTYPE html><html><head>' +
-        '<title>' + filename + '</title>' +
-        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-        '<style>*{margin:0;padding:0;}body{background:#000;}' +
-        'iframe{position:fixed;top:0;left:0;width:100%;height:100%;border:none;}' +
-        '.tip{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
-        'background:rgba(0,0,0,0.85);color:#fff;padding:12px 20px;border-radius:10px;' +
-        'font:14px/1.4 sans-serif;text-align:center;white-space:nowrap;z-index:9999;}' +
-        '</style></head><body>' +
-        '<iframe src="' + dataUri + '"></iframe>' +
-        '<div class="tip">Tap Share ↑ → Save to Files</div>' +
-        '</body></html>'
-      );
-      newTab.document.close();
+      // Navigate directly to the data URI — iOS Safari cannot render PDFs in iframes
+      newTab.location.href = dataUri;
+      showToast('Tap Share ↑ → Save to Files to save the PDF');
     } else {
       // Android / other: blob download
       const blob = _dataUriToBlob(dataUri);
