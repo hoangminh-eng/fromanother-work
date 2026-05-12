@@ -1749,17 +1749,38 @@ body:not(.edit-mode) .th-note:empty { display: none; }
 }
 .bub-field-content {
   font-size: 13px;
-  min-height: 28px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  transition: border 0.15s;
+  min-height: 60px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.06);
+  transition: border 0.15s, background 0.15s;
   word-break: break-word;
+  cursor: text;
 }
-.bub-field-content:focus {
-  border-color: rgba(0,0,0,0.15);
-  outline: none;
-  background: rgba(255,255,255,0.8);
+.bub-field-content:hover {
+  border-color: rgba(107,120,180,0.4) !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+.bub-field-content:focus,
+.bub-field-content[contenteditable="true"] {
+  border-color: #6B78B4 !important;
+  background: rgba(255,255,255,0.12) !important;
+  outline: none !important;
+}
+.bub-field-content:empty::before {
+  content: 'Double-click to edit…';
+  color: rgba(0,0,0,0.2);
+  font-size: 12px;
+  pointer-events: none;
+}
+html.dark .bub-field-content {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #e0e0e0 !important;
+}
+html.dark .bub-field-content:empty::before {
+  color: rgba(255,255,255,0.2);
 }
 .bub-field-progress {
   display: flex;
@@ -1856,7 +1877,6 @@ body:not(.edit-mode) .bub-progress-slider { pointer-events: none; }
 html.dark .bub-lines-wrap { border-top-color: rgba(255,255,255,0.08); }
 html.dark .bub-line { border-bottom-color: rgba(255,255,255,0.05); }
 html.dark .bub-field-label { color: rgba(255,255,255,0.45); }
-html.dark .bub-field-content:focus { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); }
 html.dark .bub-add-line-btn { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.4); }
 html.dark .bub-progress-slider { background: rgba(255,255,255,0.15); }
 html.dark .bub-progress-pct { color: rgba(255,255,255,0.6); }
@@ -8033,13 +8053,17 @@ function _renderField(proj, line, field, fi) {
           onmousedown="event.stopPropagation()"
           onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
         >${field.label}</div>
-        <div class="bub-field-progress">
+        <div class="bub-field-progress"
+          style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.06);min-height:60px;">
           <input type="range" min="0" max="100"
             value="${field.value || 0}"
             class="bub-progress-slider"
+            style="flex:1"
             onmousedown="event.stopPropagation()"
             oninput="_saveFieldProgress('${proj.id}','${line.id}','${field.id}',parseInt(this.value)); this.nextElementSibling.textContent=this.value+'%'">
-          <span class="bub-progress-pct">${field.value || 0}%</span>
+          <span class="bub-progress-pct"
+            style="font-size:13px;font-weight:600;min-width:40px;text-align:right;"
+          >${field.value || 0}%</span>
         </div>
         <button
           class="bub-field-del"
@@ -8067,6 +8091,7 @@ function _renderField(proj, line, field, fi) {
         onmousedown="event.stopPropagation()"
         ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus(); _showBubFieldToolbar(this);"
         onblur="this.contentEditable='false'; _saveFieldContent('${proj.id}','${line.id}','${field.id}',this.innerHTML);"
+        style="min-height:60px;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.06);font-size:13px;cursor:text;word-break:break-word;transition:border 0.15s,background 0.15s;"
       >${field.html || ''}</div>
       <button
         class="bub-field-del"
