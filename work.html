@@ -1082,10 +1082,10 @@ body:not(.edit-mode) .th-note:empty { display: none; }
 }
 
 .ov-canvas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 20px;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
   padding-bottom: 32px;
 }
 
@@ -1094,7 +1094,9 @@ body:not(.edit-mode) .th-note:empty { display: none; }
    ================================================================ */
 .bubble {
   position: relative;
-  width: 100%;
+  width: calc(50% - 8px);
+  min-width: 560px;
+  box-sizing: border-box;
   background: var(--bubble-bg);
   border: 1px solid var(--bubble-border);
   border-top: 4px solid var(--bub-accent, var(--bubble-border));
@@ -1103,6 +1105,9 @@ body:not(.edit-mode) .th-note:empty { display: none; }
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
   transition: box-shadow 0.2s, border-top-color 0.2s;
   user-select: none;
+}
+@media (max-width: 1280px) {
+  .bubble { width: 100% !important; min-width: unset; }
 }
 .bubble:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.07), 0 8px 28px rgba(0,0,0,0.06); }
 .bubble.drag-active {
@@ -1698,6 +1703,164 @@ body:not(.edit-mode) .th-note:empty { display: none; }
 .sz-btn:last-of-type  { font-size: 13px; }
 .sz-btn:hover { color: var(--dim); border-color: var(--border-md); }
 .sz-btn.active { color: var(--text); background: var(--surface); border-color: var(--border-md); }
+
+/* ================================================================
+   BUBBLE LINES & FIELDS (Section 3)
+   ================================================================ */
+.bub-lines-wrap {
+  padding: 8px 0;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  margin-top: 8px;
+}
+.bub-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.bub-line-fields {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bub-field {
+  flex: 1;
+  min-width: 100px;
+  position: relative;
+}
+.bub-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  cursor: default;
+  outline: none;
+}
+.bub-field-label[contenteditable="true"] {
+  cursor: text;
+  background: rgba(107,120,180,0.08);
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+.bub-field-content {
+  font-size: 13px;
+  min-height: 28px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: border 0.15s;
+  word-break: break-word;
+}
+.bub-field-content:focus {
+  border-color: rgba(0,0,0,0.15);
+  outline: none;
+  background: rgba(255,255,255,0.8);
+}
+.bub-field-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bub-progress-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #ddd;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bub-progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #6B78B4;
+  cursor: pointer;
+}
+.bub-progress-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  min-width: 36px;
+  text-align: right;
+}
+.bub-field-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  display: none;
+  line-height: 1;
+}
+.bub-field-del:hover { color: #e53; }
+/* Show action buttons in edit mode */
+body.edit-mode .bub-add-line-btn,
+body.edit-mode .bub-line-actions,
+body.edit-mode .bub-add-field-btn,
+body.edit-mode .bub-remove-line-btn,
+body.edit-mode .bub-field-del {
+  display: inline-flex !important;
+}
+.bub-add-line-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: #888;
+  font-size: 12px;
+  width: 100%;
+  display: none;
+}
+.bub-add-line-btn:hover { border-color: #6B78B4; color: #6B78B4; }
+.bub-line-actions {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+.bub-add-field-btn,
+.bub-remove-line-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+  background: none;
+  cursor: pointer;
+  color: #888;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.bub-remove-line-btn:hover { border-color: #e53; color: #e53; }
+/* Progress slider locked in view mode */
+body:not(.edit-mode) .bub-progress-slider { pointer-events: none; }
+/* Dark mode adjustments */
+html.dark .bub-lines-wrap { border-top-color: rgba(255,255,255,0.08); }
+html.dark .bub-line { border-bottom-color: rgba(255,255,255,0.05); }
+html.dark .bub-field-label { color: rgba(255,255,255,0.45); }
+html.dark .bub-field-content:focus { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); }
+html.dark .bub-add-line-btn { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.4); }
+html.dark .bub-progress-slider { background: rgba(255,255,255,0.15); }
+html.dark .bub-progress-pct { color: rgba(255,255,255,0.6); }
+html.dark .bub-add-field-btn, html.dark .bub-remove-line-btn { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.4); }
 
 /* ================================================================
    SCROLLBAR
@@ -5428,38 +5591,37 @@ function _showPdfPreview(previewDataUrl, getPdfBlob, filename) {
 async function _printHtmlMobile(html, filename, orientation) {
   orientation = orientation || 'portrait';
 
-  const A4W  = orientation === 'landscape' ? '1122px' : '794px';
-  const A4Px = orientation === 'landscape' ? 1122     : 794;
-
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+    (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 
-  // CRITICAL FOR iOS: window.open() MUST be called synchronously before any await.
-  // Any await before window.open() breaks the user gesture chain — Safari silently returns null.
-  // Open the tab NOW, show a loading screen, then fill it with the PDF after generation.
+  // CRITICAL: open tab BEFORE any await
+  // iOS Safari requires window.open() in synchronous user gesture chain
   let newTab = null;
   if (isIOS) {
-    newTab = window.open('', '_blank'); // ← open tab NOW — preserves gesture chain
-    if (!newTab) {
-      showToast('Allow pop-ups for this site and try again');
+    newTab = window.open('', '_blank');
+    if (newTab) {
+      newTab.document.write(
+        '<!DOCTYPE html><html>' +
+        '<head><title>Generating PDF...</title>' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<style>' +
+        'body{margin:0;background:#1a1a1a;display:flex;align-items:center;' +
+        'justify-content:center;min-height:100vh;font-family:sans-serif;}' +
+        '.msg{color:#fff;text-align:center;}' +
+        '.msg h2{font-size:20px;margin-bottom:8px;}' +
+        '.msg p{color:#888;font-size:14px;}' +
+        '</style></head>' +
+        '<body><div class="msg"><h2>Generating PDF…</h2><p>Please wait</p></div></body></html>'
+      );
+      newTab.document.close();
+    } else {
+      showToast('Allow pop-ups for this site then try again');
       return;
     }
-    newTab.document.write(
-      '<!DOCTYPE html><html><head>' +
-      '<title>Generating PDF…</title>' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<style>*{margin:0;padding:0;}body{background:#1a1a1a;display:flex;align-items:center;' +
-      'justify-content:center;min-height:100vh;font-family:sans-serif;}' +
-      '.msg{color:#fff;text-align:center;}.msg h2{font-size:20px;margin-bottom:8px;}' +
-      '.msg p{color:#888;font-size:14px;}</style></head>' +
-      '<body><div class="msg"><h2>Generating PDF…</h2><p>Please wait</p></div></body></html>'
-    );
-    newTab.document.close();
   }
 
-  // Show overlay in current tab too
+  // Show overlay in current tab
   const overlay = document.createElement('div');
-  overlay.id = '_pdf-overlay';
   overlay.style.cssText =
     'position:fixed;inset:0;z-index:99999;' +
     'background:rgba(255,255,255,0.95);' +
@@ -5471,92 +5633,78 @@ async function _printHtmlMobile(html, filename, orientation) {
     '<div style="font-size:13px;color:#888;">Please wait</div>';
   document.body.appendChild(overlay);
 
+  const A4W  = orientation === 'landscape' ? '1122px' : '794px';
+  const A4Px = orientation === 'landscape' ? 1122     : 794;
+
+  let renderDiv;
   try {
-    // Load pdf library
-    await _loadHtml2Pdf();
+    await _loadHtml2Pdf?.();
 
-    // Extract CSS + fonts from the exported HTML string
-    const styles = [];
-    html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, css) => styles.push(css));
-    const fontHrefs = [];
-    html.replace(/<link[^>]+fonts\.googleapis[^>]+>/gi, m => {
-      const href = (m.match(/href="([^"]+)"/) || [])[1];
-      if (href) fontHrefs.push(href);
-    });
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const bodyHtml = bodyMatch ? bodyMatch[1] : html;
-
-    // Inject fonts + styles into current document so renderDiv renders correctly
-    const tempEls = [];
-    fontHrefs.forEach(href => {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet'; link.href = href;
-      document.head.appendChild(link); tempEls.push(link);
-    });
-    const tempStyle = document.createElement('style');
-    tempStyle.textContent = styles.join('\n');
-    document.head.appendChild(tempStyle); tempEls.push(tempStyle);
-
-    // Build renderDiv in current tab (iOS can only capture current-tab DOM)
-    const renderDiv = document.createElement('div');
+    renderDiv = document.createElement('div');
     renderDiv.style.cssText =
       'position:fixed;left:-9999px;top:0;' +
-      'width:1122px;min-width:1122px;max-width:1122px;' +
+      'width:' + A4W + ';min-width:' + A4W + ';max-width:' + A4W + ';' +
       'background:#fff;overflow:visible;' +
-      'box-sizing:border-box;padding:18px 22px;margin:0;';
-    renderDiv.innerHTML = bodyHtml;
-    document.body.appendChild(renderDiv); tempEls.push(renderDiv);
+      'box-sizing:border-box;padding:18px 22px;';
+    renderDiv.innerHTML = html;
+    document.body.appendChild(renderDiv);
 
-    // Wait for fonts and layout
     await document.fonts.ready;
-    await new Promise(r => setTimeout(r, 500));
-
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-      (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+    await new Promise(r => setTimeout(r, 400));
 
     const pdfOpts = {
-      margin: 0, // padding is inside the canvas — margin 0 prevents double-spacing
+      margin: 0,
       filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 1,
-        useCORS: true, logging: false,
-        scrollX: 0, scrollY: 0,
-        width: 1122, windowWidth: 1122,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        width: A4Px,
+        windowWidth: A4Px,
         allowTaint: true
       },
-      jsPDF: { unit: 'px', format: [1122, 794], orientation: 'landscape', compress: true },
+      jsPDF: {
+        unit: 'px',
+        format: [A4Px, orientation === 'landscape' ? 794 : 1122],
+        orientation: orientation,
+        compress: true
+      },
       pagebreak: {
         mode: ['css', 'legacy'],
         avoid: ['tr', 'img', 'table', '.quot-notes-terms-wrap']
       }
     };
 
-    // Generate PDF — tab is already open so this await is safe
-    const dataUri = await html2pdf().set(pdfOpts).from(renderDiv).outputPdf('datauristring');
+    const dataUri = await html2pdf()
+      .set(pdfOpts)
+      .from(renderDiv)
+      .outputPdf('datauristring');
 
-    // Cleanup
-    tempEls.forEach(el => el.remove());
+    renderDiv.remove();
     overlay.remove();
 
     if (!dataUri || dataUri.length < 100) {
-      showToast('PDF generation failed — please try again');
+      showToast('PDF generation failed');
       if (newTab) newTab.close();
       return;
     }
 
     if (isIOS && newTab) {
-      // Write PDF into the already-open tab — replaces the loading screen
+      // Write PDF into already-open tab
       newTab.document.open();
       newTab.document.write(
-        '<!DOCTYPE html><html><head>' +
-        '<title>' + filename + '</title>' +
+        '<!DOCTYPE html><html>' +
+        '<head><title>' + filename + '</title>' +
         '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-        '<style>*{margin:0;padding:0;}body{background:#000;}' +
-        'iframe{position:fixed;top:0;left:0;width:100%;height:100%;border:none;}' +
+        '<style>' +
+        '*{margin:0;padding:0}body{background:#000}' +
+        'iframe{position:fixed;top:0;left:0;width:100%;height:100%;border:none}' +
         '.tip{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
         'background:rgba(0,0,0,0.85);color:#fff;padding:12px 20px;border-radius:10px;' +
-        'font:14px/1.4 sans-serif;text-align:center;white-space:nowrap;z-index:9999;}' +
+        'font:14px/1.4 sans-serif;text-align:center;white-space:nowrap;z-index:9999}' +
         '</style></head><body>' +
         '<iframe src="' + dataUri + '"></iframe>' +
         '<div class="tip">Tap Share ↑ → Save to Files</div>' +
@@ -5564,20 +5712,24 @@ async function _printHtmlMobile(html, filename, orientation) {
       );
       newTab.document.close();
     } else {
-      // Android / other: blob download
+      // Android / desktop fallback
       const blob = _dataUriToBlob(dataUri);
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
   } catch(err) {
-    console.error('PDF export error:', err);
+    console.error('PDF error:', err);
+    if (renderDiv) renderDiv.remove();
     overlay.remove();
     if (newTab) newTab.close();
-    showToast('PDF export failed: ' + (err.message || err));
+    showToast('PDF failed: ' + (err.message || err));
   }
 }
 
@@ -7638,6 +7790,7 @@ function addProject() {
     progress: 0, pic: '',
     pendingItems: [], comments: [], files: [],
     sections: {}, status: null, bubbleBg: null,
+    lines: [],
     pos: {x: 40 + (n % 3) * 420, y: 20 + Math.floor(n / 3) * 60}
   };
   S.projects.push(proj);
@@ -7822,8 +7975,215 @@ function buildBubbleHTML(proj) {
       </div>
     </div>
 
+    ${_renderBubbleLines(proj)}
+
   </div>`;
 }
+
+/* ================================================================
+   SECTION 3 — BUBBLE LINES & FIELDS SYSTEM
+   ================================================================ */
+
+function _renderBubbleLines(proj) {
+  const lines = proj.lines || [];
+  const linesHtml = lines.map((line, li) => _renderLine(proj, line, li)).join('');
+  return `
+    <div class="bub-lines-wrap">
+      ${linesHtml}
+      <button
+        class="bub-add-line-btn"
+        onmousedown="event.stopPropagation()"
+        onclick="event.stopPropagation(); _addLine('${proj.id}')">
+        + Add Line
+      </button>
+    </div>
+  `;
+}
+
+function _renderLine(proj, line, lineIdx) {
+  const fields = line.fields || [];
+  const fieldsHtml = fields.map((field, fi) => _renderField(proj, line, field, fi)).join('');
+  return `
+    <div class="bub-line" data-line-id="${line.id}">
+      <div class="bub-line-fields">${fieldsHtml}</div>
+      <div class="bub-line-actions">
+        <button
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _addField('${proj.id}','${line.id}')"
+          class="bub-add-field-btn"
+          title="Add field">+</button>
+        <button
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _removeLine('${proj.id}','${line.id}')"
+          class="bub-remove-line-btn"
+          title="Remove line">×</button>
+      </div>
+    </div>
+  `;
+}
+
+function _renderField(proj, line, field, fi) {
+  if (field.type === 'progress') {
+    return `
+      <div class="bub-field" data-field-id="${field.id}">
+        <div class="bub-field-label"
+          contenteditable="false"
+          ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus();"
+          onblur="this.contentEditable='false'; _saveFieldLabel('${proj.id}','${line.id}','${field.id}',this.innerText);"
+          onmousedown="event.stopPropagation()"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+        >${field.label}</div>
+        <div class="bub-field-progress">
+          <input type="range" min="0" max="100"
+            value="${field.value || 0}"
+            class="bub-progress-slider"
+            onmousedown="event.stopPropagation()"
+            oninput="_saveFieldProgress('${proj.id}','${line.id}','${field.id}',parseInt(this.value)); this.nextElementSibling.textContent=this.value+'%'">
+          <span class="bub-progress-pct">${field.value || 0}%</span>
+        </div>
+        <button
+          class="bub-field-del"
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _removeField('${proj.id}','${line.id}','${field.id}')"
+          title="Remove field">×</button>
+      </div>
+    `;
+  }
+  // Text / rich field
+  return `
+    <div class="bub-field" data-field-id="${field.id}">
+      <div class="bub-field-label"
+        contenteditable="false"
+        ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus();"
+        onblur="this.contentEditable='false'; _saveFieldLabel('${proj.id}','${line.id}','${field.id}',this.innerText);"
+        onmousedown="event.stopPropagation()"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+      >${field.label}</div>
+      <div class="bub-field-content cell-editable"
+        contenteditable="false"
+        data-proj="${proj.id}"
+        data-line="${line.id}"
+        data-field="${field.id}"
+        onmousedown="event.stopPropagation()"
+        ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus(); _showBubFieldToolbar(this);"
+        onblur="this.contentEditable='false'; _saveFieldContent('${proj.id}','${line.id}','${field.id}',this.innerHTML);"
+      >${field.html || ''}</div>
+      <button
+        class="bub-field-del"
+        onmousedown="event.stopPropagation()"
+        onclick="event.stopPropagation(); _removeField('${proj.id}','${line.id}','${field.id}')"
+        title="Remove field">×</button>
+    </div>
+  `;
+}
+
+function _addLine(projId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  if (!proj.lines) proj.lines = [];
+  const ts = Date.now();
+  const newLine = {
+    id: 'line_' + ts,
+    fields: [
+      { id: 'f1_' + ts,       label: 'Name',     html: '', type: 'text' },
+      { id: 'f2_' + (ts+1),   label: 'Showcase', html: '', type: 'text' },
+      { id: 'f3_' + (ts+2),   label: 'Progress', value: 0, type: 'progress' },
+      { id: 'f4_' + (ts+3),   label: 'Note',     html: '', type: 'text' }
+    ]
+  };
+  proj.lines.push(newLine);
+  save();
+  renderProjects();
+}
+
+function _removeLine(projId, lineId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.lines = (proj.lines || []).filter(l => l.id !== lineId);
+  save();
+  renderProjects();
+}
+
+function _addField(projId, lineId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  line.fields.push({ id: 'f_' + Date.now(), label: 'Field', html: '', type: 'text' });
+  save();
+  renderProjects();
+}
+
+function _removeField(projId, lineId, fieldId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  line.fields = line.fields.filter(f => f.id !== fieldId);
+  save();
+  renderProjects();
+}
+
+function _saveFieldContent(projId, lineId, fieldId, html) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field) return;
+  field.html = html;
+  save();
+}
+
+function _saveFieldLabel(projId, lineId, fieldId, label) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field) return;
+  field.label = label.trim() || field.label;
+  save();
+}
+
+function _saveFieldProgress(projId, lineId, fieldId, value) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field) return;
+  field.value = value;
+  save();
+}
+
+/* Show formatting toolbar for a bubble field (reuses Section 1 toolbar) */
+function _showBubFieldToolbar(el) {
+  // Point activeCellRef at this element so fmtApply works
+  const ref = { el: el, wId: null, pId: null, cId: null };
+  activeCellRef = ref;
+  _lastActiveCellRef = ref;
+  if (typeof showToolbar === 'function') {
+    const rect = el.getBoundingClientRect();
+    showToolbar(rect.left + rect.width / 2, rect.top);
+  }
+}
+
+/* Insert URL link into focused bubble field */
+function _insertFieldUrl() {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const url = prompt('Enter URL:');
+  if (!url) return;
+  const name = prompt('Enter link name:', url);
+  const link = '<a href="' + url + '" target="_blank" style="color:#6B78B4">' + (name || url) + '</a>';
+  document.execCommand('insertHTML', false, link);
+}
+
+/* ================================================================ */
 
 function buildPendHTML(pId, it) {
   const fileChip = it.fileName ? `
