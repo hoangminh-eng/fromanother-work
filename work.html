@@ -5528,7 +5528,7 @@ async function _printHtmlMobile(html, filename, orientation) {
       jsPDF: { unit: 'px', format: [1122, 794], orientation: 'landscape', compress: true },
       pagebreak: {
         mode: ['css', 'legacy'],
-        avoid: ['tr', 'img', 'table']
+        avoid: ['tr', 'img', 'table', '.quot-notes-terms-wrap']
       }
     };
 
@@ -13841,7 +13841,7 @@ function quotExportVersion(projId, ver) {
   // Notes HTML
   const allNotes=(vd.notes||[]).filter(n=>n.label||n.content);
   const notesSectionHtml=allNotes.length?`
-    <div class="notes-section">
+    <div class="quot-notes-terms-wrap notes-section">
       ${allNotes.map(n=>`
         <div class="note-item">
           <div class="note-lbl">${_esc2(n.label)}</div>
@@ -13926,6 +13926,8 @@ table.main td{border:1px solid #e8e8e8;padding:5px 7px;font-size:10px;vertical-a
 /* ── Notes ── */
 .notes-section{margin-top:16px;padding-top:12px;border-top:1px solid #ebebeb}
 .note-item{margin-bottom:10px}
+.quot-notes-terms-wrap{page-break-inside:avoid!important;break-inside:avoid!important}
+.quot-notes-terms-wrap .note-item{page-break-inside:avoid!important;break-inside:avoid!important}
 .note-lbl{font-size:11px;font-weight:700;color:#141414;margin-bottom:3px}
 .note-txt{font-size:9px;color:#444;line-height:1.55;white-space:pre-wrap}
 /* ── Detail explanation table ── */
