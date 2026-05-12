@@ -5503,7 +5503,7 @@ async function _printHtmlMobile(html, filename, orientation) {
       'position:fixed;left:-9999px;top:0;' +
       'width:1122px;min-width:1122px;max-width:1122px;' +
       'background:#fff;overflow:visible;' +
-      'box-sizing:border-box;padding:35px 45px;margin:0;';
+      'box-sizing:border-box;padding:18px 22px;margin:0;';
     renderDiv.innerHTML = bodyHtml;
     document.body.appendChild(renderDiv); tempEls.push(renderDiv);
 
@@ -13881,7 +13881,7 @@ body{font-family:'DM Sans',system-ui,sans-serif!important;color:#141414;
 @media print{@page{size:A4 landscape;margin:0}body{padding:0!important}}
 /* Padding is inside the canvas — html2pdf slices at 794px, so every page
    naturally has 35px top/bottom breathing room from the wrapper padding */
-.quot-export-wrap{padding:35px 45px;width:1122px;box-sizing:border-box}
+.quot-export-wrap{padding:18px 22px;width:1122px;box-sizing:border-box}
 .page-spacer{display:block;height:35px;width:100%;page-break-after:avoid}
 table{border-spacing:0;page-break-inside:auto}
 tr{page-break-inside:avoid!important;page-break-after:auto}
