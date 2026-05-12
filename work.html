@@ -14042,6 +14042,13 @@ let _recruitToken       = null;
 let _recruitExpanded    = {};
 let _recruitBubbleColors = (()=>{ try{ return JSON.parse(localStorage.getItem('fa_recruit_colors')||'{}'); }catch(e){ return {}; } })();
 
+// iOS detection — used to skip silent-auth iframe which blocks Safari rendering
+const _IS_IOS_DEVICE = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+
+// Singleton — prevents two concurrent hidden OAuth iframes on desktop
+let _silentAuthPromise = null;
+
 /* ── Auth ─────────────────────────────────────────────────────── */
 function _recruitGetSavedToken() {
   try {
@@ -14058,12 +14065,21 @@ async function _ensureValidToken() {
     if (!saved) return null;
     // Still valid with 1 min buffer
     if (saved.expiry > Date.now() + 60000) return saved.token;
-    // Expiring or expired — try silent refresh with hard 4s timeout
-    // iOS Safari iframe hangs without this guard
-    const newToken = await Promise.race([
-      _recruitSilentAuth(),
-      new Promise(resolve => setTimeout(() => resolve(null), 4000))
-    ]);
+
+    // iOS: NEVER attempt silent iframe refresh — two concurrent hidden OAuth iframes
+    // block Safari's rendering engine, causing the blank-screen hang on page load.
+    // Return the existing token (Google accepts tokens a few minutes past expiry)
+    // and let the explicit re-auth button handle renewal if it truly fails.
+    if (_IS_IOS_DEVICE) return saved.token || null;
+
+    // Desktop: use singleton — prevents concurrent iframes if called from multiple paths
+    if (!_silentAuthPromise) {
+      _silentAuthPromise = Promise.race([
+        _recruitSilentAuth(),
+        new Promise(resolve => setTimeout(() => resolve(null), 4000))
+      ]).finally(() => { _silentAuthPromise = null; });
+    }
+    const newToken = await _silentAuthPromise;
     if (newToken) {
       localStorage.setItem('fa_recruit_token', JSON.stringify({
         token:      newToken,
@@ -14074,7 +14090,7 @@ async function _ensureValidToken() {
       }));
       return newToken;
     }
-    // Silent refresh failed or timed out — return existing token, do not hang
+    // Silent refresh failed — return existing token, do not hang
     return saved.token || null;
   } catch(e) {
     return null;
