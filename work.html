@@ -1173,6 +1173,22 @@ body:not(.edit-mode) .th-note:empty { display: none; }
   line-height: 1;
 }
 .bub-del:hover { color: #D94040; background: #FEF2F2; }
+.bub-chevron {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--dimmer);
+  background: transparent;
+  border: none;
+  font-family: var(--font);
+  transition: all 0.12s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.bub-chevron:hover { color: var(--text); background: var(--surface); }
+html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 
 /* Bubble order arrows ↑↓ */
 .bub-order-btns { display: flex; flex-direction: column; gap: 1px; }
@@ -8000,9 +8016,13 @@ function buildBubbleHTML(proj) {
         </div>
       </div>
       <button class="bub-del" onclick="deleteProject('${proj.id}')" title="Delete">×</button>
+      <button class="bub-chevron" title="Collapse / expand"
+              onclick="event.stopPropagation(); _toggleBubble('${proj.id}')"
+              onmousedown="event.stopPropagation()"
+      >${proj.bubOpen === false ? '▸' : '▾'}</button>
     </div>
   </div>
-  <div class="bub-body">
+  <div class="bub-body" ${proj.bubOpen === false ? 'style="display:none"' : ''}>
 
     <div class="bub-section">
       <div class="bub-sec-label" contenteditable="true"
@@ -8355,6 +8375,22 @@ function _saveFieldProgress(projId, lineId, fieldId, value) {
     if (pctEl) pctEl.textContent = proj.progress + '%';
     if (rangeEl) rangeEl.value = proj.progress;
   }
+}
+
+/* Toggle Section 3 bubble open/closed */
+function _toggleBubble(projId) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  // undefined / true = open → close; false = closed → open
+  proj.bubOpen = (proj.bubOpen === false) ? true : false;
+  save();
+  // Live-update DOM — no full re-render needed
+  const bubEl = document.getElementById('bub-' + projId);
+  if (!bubEl) return;
+  const body = bubEl.querySelector('.bub-body');
+  const chev = bubEl.querySelector('.bub-chevron');
+  if (body) body.style.display = proj.bubOpen === false ? 'none' : '';
+  if (chev) chev.textContent   = proj.bubOpen === false ? '▸' : '▾';
 }
 
 /* Show formatting toolbar for a bubble field (reuses Section 1 toolbar) */
