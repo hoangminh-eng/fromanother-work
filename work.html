@@ -1737,33 +1737,34 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 }
 .bub-line-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
+  grid-template-columns: 0.6fr 0.6fr 180px 1fr;
+  gap: 10px;
   align-items: start;
-  flex: 1;
+  width: 100%;
 }
 .bub-field {
   position: relative;
   min-width: 0;
 }
-/* Note field spans full width */
+/* Desktop — note in same row, no full-width override */
 .bub-field-note {
-  grid-column: 1 / -1 !important;
+  grid-column: auto !important;
   width: 100% !important;
 }
-/* Progress field capped width */
+/* Note content taller since column is narrower */
+.bub-field-note .bub-field-content {
+  min-height: 100px !important;
+}
+/* Progress field fixed width */
 .bub-field[data-field-type="progress"] {
-  min-width: 140px;
-  max-width: 200px;
+  min-width: 0;
+  max-width: 100%;
 }
 /* Bigger fields on desktop */
-@media (min-width: 769px) {
+@media (min-width: 901px) {
   .bub-field-content {
     min-height: 90px !important;
     font-size: 14px !important;
-  }
-  .bub-field-note .bub-field-content {
-    min-height: 100px !important;
   }
   .bub-field-label {
     font-size: 11px !important;
@@ -1773,17 +1774,28 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
     height: 6px !important;
   }
 }
-/* Responsive — mobile */
-@media (max-width: 768px) {
+/* Tablet — 3 cols, note wraps below */
+@media (max-width: 900px) {
+  .bub-line-fields {
+    grid-template-columns: 1fr 1fr 160px;
+  }
+  .bub-field-note {
+    grid-column: 1 / -1 !important;
+  }
+  .bub-field-content {
+    min-height: 70px !important;
+    font-size: 13px !important;
+  }
+}
+/* Mobile — 2 cols, progress + note full width */
+@media (max-width: 600px) {
   .bub-line-fields {
     grid-template-columns: 1fr 1fr;
   }
-  .bub-field[data-field-type="progress"] {
-    grid-column: 1 / -1;
-    max-width: 100%;
-  }
+  .bub-field[data-field-type="progress"],
   .bub-field-note {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1 !important;
+    max-width: 100%;
   }
   .bub-field-content {
     min-height: 60px !important;
@@ -1953,6 +1965,19 @@ body.edit-mode .bub-field-actions {
   transition: border-color 0.12s, color 0.12s;
 }
 .bub-field-action-btn:hover { border-color: #6B78B4; color: #6B78B4; }
+/* Showcase gallery edit buttons */
+body.edit-mode .showcase-add-btn,
+body.edit-mode .showcase-add-url,
+body.edit-mode .showcase-del-item {
+  display: block !important;
+}
+.showcase-caption:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(128,128,128,0.4);
+  font-style: italic;
+  font-size: 12px;
+  pointer-events: none;
+}
 
 /* Note meta (date + round) */
 .bub-note-meta {
@@ -8168,6 +8193,11 @@ function _renderLine(proj, line, lineIdx) {
 }
 
 function _renderField(proj, line, field, fi) {
+  // Showcase field — special gallery layout
+  if (field.isShowcase || field.label?.toLowerCase() === 'showcase') {
+    return _renderShowcaseField(proj, line, field);
+  }
+
   if (field.type === 'progress') {
     return `
       <div class="bub-field" data-field-id="${field.id}" data-field-type="progress">
@@ -8265,6 +8295,148 @@ function _renderField(proj, line, field, fi) {
   `;
 }
 
+/* ── Showcase field renderer ── */
+function _renderShowcaseField(proj, line, field) {
+  const items = field.items || [];
+
+  const itemsHtml = items.map((item, idx) => `
+    <div class="showcase-item" data-item-idx="${idx}"
+      style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(128,128,128,0.1);">
+      <!-- Thumbnail -->
+      <div style="flex-shrink:0;width:80px;height:80px;border-radius:6px;overflow:hidden;background:rgba(128,128,128,0.1);display:flex;align-items:center;justify-content:center;">
+        ${item.src
+          ? `<img src="${item.src}" style="width:100%;height:100%;object-fit:cover;cursor:pointer;" class="cell-img">`
+          : `<span style="color:#aaa;font-size:22px;">🖼</span>`
+        }
+      </div>
+      <!-- Caption + URL -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">
+        <div class="showcase-caption cell-editable"
+          contenteditable="false"
+          data-proj="${proj.id}" data-line="${line.id}" data-field="${field.id}" data-item="${idx}"
+          data-placeholder="Add caption..."
+          onmousedown="event.stopPropagation()"
+          onclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus();"
+          onblur="if(!_toolbarMousedown){this.contentEditable='false';} _saveShowcaseCaption('${proj.id}','${line.id}','${field.id}',${idx},this.innerHTML);"
+          style="min-height:32px;padding:6px 8px;border-radius:4px;border:1px solid rgba(128,128,128,0.2);background:rgba(128,128,128,0.05);font-size:13px;cursor:text;word-break:break-word;"
+        >${item.caption || ''}</div>
+        ${item.url ? `<a href="${escAttr(item.url)}" target="_blank" rel="noopener"
+          style="font-size:12px;color:#6B78B4;text-decoration:underline;word-break:break-all;"
+          onclick="event.stopPropagation()">${esc(item.urlName || item.url)}</a>` : ''}
+        <button class="showcase-add-url"
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _addShowcaseUrl('${proj.id}','${line.id}','${field.id}',${idx})"
+          style="display:none;font-size:11px;padding:3px 8px;border:1px dashed rgba(128,128,128,0.4);border-radius:4px;background:none;cursor:pointer;color:#888;width:fit-content;">
+          ${item.url ? '✏ Edit URL' : '+ Add URL'}</button>
+        <button class="showcase-del-item"
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _removeShowcaseItem('${proj.id}','${line.id}','${field.id}',${idx})"
+          style="display:none;font-size:11px;padding:3px 8px;border:none;border-radius:4px;background:rgba(192,57,43,0.12);color:#c0392b;cursor:pointer;width:fit-content;">
+          Remove</button>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="bub-field showcase-field" data-field-id="${field.id}" data-field-type="showcase">
+      <div class="bub-field-label"
+        contenteditable="false"
+        ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus();"
+        onblur="this.contentEditable='false'; _saveFieldLabel('${proj.id}','${line.id}','${field.id}',this.innerText);"
+        onmousedown="event.stopPropagation()"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        ${field.label}
+      </div>
+      <div class="showcase-items-list"
+        style="display:flex;flex-direction:column;border:1px solid rgba(128,128,128,0.2);border-radius:6px;padding:4px;background:rgba(128,128,128,0.03);min-height:80px;">
+        ${itemsHtml}
+        <button class="showcase-add-btn"
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _addShowcaseImage('${proj.id}','${line.id}','${field.id}')"
+          style="display:none;width:100%;padding:8px;border:1px dashed rgba(128,128,128,0.3);border-radius:4px;background:none;cursor:pointer;color:#888;font-size:12px;margin-top:4px;">
+          + Add Image
+        </button>
+      </div>
+      <button class="bub-field-del"
+        onmousedown="event.stopPropagation()"
+        onclick="event.stopPropagation(); _removeField('${proj.id}','${line.id}','${field.id}')"
+        style="display:none" title="Remove field">×</button>
+    </div>
+  `;
+}
+
+function _addShowcaseImage(projId, lineId, fieldId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  window._showcaseTarget = { projId, lineId, fieldId };
+  const input = document.getElementById('cell-img-input');
+  if (input) {
+    input.onchange = _handleShowcaseImageFile;
+    input.click();
+  }
+}
+
+function _handleShowcaseImageFile(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const t = window._showcaseTarget;
+    if (!t) return;
+    const proj = S.projects.find(p => p.id === t.projId);
+    if (!proj) return;
+    const line = (proj.lines || []).find(l => l.id === t.lineId);
+    if (!line) return;
+    const field = line.fields.find(f => f.id === t.fieldId);
+    if (!field) return;
+    if (!field.items) field.items = [];
+    field.items.push({ src: ev.target.result, caption: '', url: '', urlName: '' });
+    save();
+    renderProjects();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function _saveShowcaseCaption(projId, lineId, fieldId, idx, html) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field || !field.items?.[idx]) return;
+  field.items[idx].caption = html;
+  save();
+}
+
+function _addShowcaseUrl(projId, lineId, fieldId, idx) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field || !field.items) return;
+  const url = prompt('Enter URL:');
+  if (!url) return;
+  const name = prompt('Enter link text:', url);
+  if (!field.items[idx]) return;
+  field.items[idx].url = url;
+  field.items[idx].urlName = name || url;
+  save();
+  renderProjects();
+}
+
+function _removeShowcaseItem(projId, lineId, fieldId, idx) {
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === fieldId);
+  if (!field || !field.items) return;
+  field.items.splice(idx, 1);
+  save();
+  renderProjects();
+}
+
 function _addLine(projId) {
   if (!document.body.classList.contains('edit-mode')) return;
   const proj = S.projects.find(p => p.id === projId);
@@ -8275,7 +8447,7 @@ function _addLine(projId) {
     id: 'line_' + ts,
     fields: [
       { id: 'f1_' + ts,       label: 'Name',     html: '', type: 'text' },
-      { id: 'f2_' + (ts+1),   label: 'Showcase', html: '', type: 'text' },
+      { id: 'f2_' + (ts+1),   label: 'Showcase', html: '', type: 'text', isShowcase: true, items: [] },
       { id: 'f3_' + (ts+2),   label: 'Progress', value: 0, type: 'progress' },
       { id: 'f4_' + (ts+3),   label: 'Note',     html: '', type: 'text', isNote: true, date: '', round: 1 }
     ]
