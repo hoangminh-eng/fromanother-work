@@ -1255,7 +1255,9 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 .cp-swatch:hover { transform: scale(1.18); }
 .cp-swatch.active { border-color: rgba(0,0,0,0.35); }
 
-.bub-body { padding: 16px 20px 4px; }
+.bub-body { padding: 8px 12px 4px; }
+@media (min-width: 600px)  { .bub-body { padding: 12px 16px 4px; } }
+@media (min-width: 1200px) { .bub-body { padding: 16px 20px 4px; } }
 
 /* Sections inside bubble */
 .bub-section { margin-bottom: 16px; }
@@ -1735,78 +1737,74 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
   padding: 12px 0;
   border-bottom: 1px solid rgba(128,128,128,0.15);
 }
+/* ── bub-line-fields — mobile-first responsive grid ── */
 .bub-line-fields {
   display: grid;
-  grid-template-columns: 0.3fr 0.7fr 160px 1fr;
-  gap: 10px;
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: 8px;
   width: 100%;
+  box-sizing: border-box;
+  align-items: start;
 }
+.bub-line-fields .bub-field,
 .bub-field {
   position: relative;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
-/* Desktop — note in same row, no full-width override */
+/* Mobile default — all fields full-width, stacked */
+.bub-field[data-field-type="progress"],
+.bub-field[data-is-note="true"],
 .bub-field-note {
-  grid-column: auto !important;
-  width: 100% !important;
+  grid-column: 1 / -1;
+  width: 100%;
 }
-/* Note content taller since column is narrower */
-.bub-field-note .bub-field-content {
-  min-height: 100px !important;
-}
-/* Progress field fixed width */
-.bub-field[data-field-type="progress"] {
-  min-width: 0;
-  max-width: 100%;
-}
-/* Bigger fields on desktop */
-@media (min-width: 901px) {
-  .bub-field-content {
-    min-height: 90px !important;
-    font-size: 14px !important;
-  }
-  .bub-field-label {
-    font-size: 11px !important;
-    margin-bottom: 6px !important;
-  }
-  .bub-progress-slider {
-    height: 6px !important;
-  }
-}
-/* Tablet — 3 cols, note wraps below */
-@media (max-width: 900px) {
-  .bub-line-fields {
-    grid-template-columns: 0.4fr 0.6fr 140px;
-  }
-  .bub-field[data-is-note="true"],
-  .bub-field-note {
-    grid-column: 1 / -1 !important;
-  }
-  .bub-field-content {
-    min-height: 70px !important;
-    font-size: 13px !important;
-  }
-}
-/* Mobile — 2 cols, progress + note full width */
-@media (max-width: 600px) {
+/* Tablet 600px+ — 2 cols; progress + note full-width */
+@media (min-width: 600px) {
   .bub-line-fields {
     grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
-  .bub-field:nth-child(3),
+  .bub-field[data-field-type="progress"],
   .bub-field[data-is-note="true"],
   .bub-field-note {
-    grid-column: 1 / -1 !important;
-    max-width: 100%;
+    grid-column: 1 / -1;
   }
-  .bub-field-content {
-    min-height: 60px !important;
-    font-size: 13px !important;
+}
+/* Tablet large 900px+ — 3 cols; note full-width */
+@media (min-width: 900px) {
+  .bub-line-fields {
+    grid-template-columns: 1fr 1fr 160px;
+    gap: 10px;
+  }
+  .bub-field[data-field-type="progress"] {
+    grid-column: auto;
+  }
+  .bub-field[data-is-note="true"],
+  .bub-field-note {
+    grid-column: 1 / -1;
+  }
+}
+/* Desktop 1200px+ — 4 cols; all in one row */
+@media (min-width: 1200px) {
+  .bub-line-fields {
+    grid-template-columns: 0.3fr 0.7fr 160px 1fr;
+    gap: 12px;
+  }
+  .bub-field[data-field-type="progress"],
+  .bub-field[data-is-note="true"],
+  .bub-field-note {
+    grid-column: auto;
+    width: 100%;
+  }
+  .bub-field-note .bub-field-content {
+    min-height: 90px !important;
   }
 }
 .bub-field-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1814,6 +1812,7 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
   cursor: default;
   outline: none;
 }
+@media (min-width: 900px)  { .bub-field-label { font-size: 11px; margin-bottom: 6px; } }
 .bub-field-label[contenteditable="true"] {
   cursor: text;
   background: rgba(107,120,180,0.08);
@@ -1822,15 +1821,19 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 }
 .bub-field-content {
   font-size: 13px;
-  min-height: 60px;
-  padding: 8px;
+  min-height: 50px;
+  padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid rgba(0,0,0,0.1);
   background: rgba(255,255,255,0.06);
   transition: border 0.15s, background 0.15s;
   word-break: break-word;
   cursor: text;
+  box-sizing: border-box;
+  width: 100%;
 }
+@media (min-width: 600px)  { .bub-field-content { min-height: 60px; } }
+@media (min-width: 1200px) { .bub-field-content { min-height: 80px; font-size: 14px; padding: 10px 12px; } }
 .bub-field-content:hover {
   border-color: rgba(107,120,180,0.4) !important;
   background: rgba(255,255,255,0.08) !important;
@@ -1860,9 +1863,15 @@ html.dark .bub-field-content:empty::before {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 10px;
+  min-height: 50px;
+  box-sizing: border-box;
+  width: 100%;
 }
+@media (min-width: 600px)  { .bub-field-progress { min-height: 60px; } }
 .bub-progress-slider {
   flex: 1;
+  width: 100%;
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
@@ -1870,6 +1879,7 @@ html.dark .bub-field-content:empty::before {
   border-radius: 2px;
   cursor: pointer;
 }
+@media (min-width: 900px) { .bub-progress-slider { height: 6px; } }
 .bub-progress-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
@@ -2006,6 +2016,14 @@ body.edit-mode .showcase-add-url,
 body.edit-mode .showcase-del-item {
   display: block !important;
 }
+/* Showcase responsive */
+.showcase-field,
+.showcase-items-list { width: 100%; box-sizing: border-box; }
+/* Mobile — image above caption */
+.showcase-item { flex-direction: column !important; }
+@media (min-width: 600px) {
+  .showcase-item { flex-direction: row !important; align-items: flex-start; }
+}
 .showcase-caption:empty::before {
   content: attr(data-placeholder);
   color: rgba(128,128,128,0.4);
@@ -2017,10 +2035,16 @@ body.edit-mode .showcase-del-item {
 /* Note meta (date + round) */
 .bub-note-meta {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   margin-top: 6px;
   flex-wrap: wrap;
+}
+@media (max-width: 599px) {
+  .bub-note-meta { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+@media (min-width: 600px) {
+  .bub-note-meta { gap: 12px; }
 }
 .bub-note-meta-label {
   font-size: 11px;
