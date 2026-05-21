@@ -8457,26 +8457,117 @@ function _addShowcaseImage(projId, lineId, fieldId) {
   }
 }
 
-function _handleShowcaseImageFile(e) {
+/* ── Drive image upload helpers ── */
+async function _getDriveImageFolder(token) {
+  try {
+    const q = encodeURIComponent(
+      "name='fa_work_images' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    );
+    const searchRes = await fetch(
+      'https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)',
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    const searchData = await searchRes.json();
+    if (searchData.files?.length > 0) return searchData.files[0].id;
+    // Create folder
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'fa_work_images', mimeType: 'application/vnd.google-apps.folder' })
+    });
+    const folder = await createRes.json();
+    return folder.id || null;
+  } catch(err) { console.error('Drive folder error:', err); return null; }
+}
+
+function _driveProgressToast(msg, type) {
+  // type: 'loading' | 'success' | 'error'
+  let el = document.getElementById('_drive-upload-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_drive-upload-toast';
+    el.style.cssText =
+      'position:fixed;bottom:80px;right:20px;padding:10px 16px;border-radius:8px;' +
+      'font-size:13px;z-index:99999;display:flex;align-items:center;gap:8px;' +
+      'color:#fff;transition:background 0.2s;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  const icon = type === 'loading' ? '⏳' : type === 'success' ? '✓' : '✗';
+  const bg   = type === 'loading' ? '#333' : type === 'success' ? '#2a7a2a' : '#7a2a2a';
+  el.style.background = bg;
+  el.innerHTML = '<span>' + icon + '</span><span>' + msg + '</span>';
+  if (type !== 'loading') {
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, type === 'error' ? 3000 : 2000);
+  }
+}
+
+async function _uploadImageToDrive(file) {
+  const token = await _ensureValidToken();
+  if (!token) {
+    showToast('Please connect Google account in Recruit section first');
+    return null;
+  }
+  _driveProgressToast('Uploading image to Drive…', 'loading');
+  try {
+    const folderId = await _getDriveImageFolder(token);
+    if (!folderId) { _driveProgressToast('Failed to create Drive folder', 'error'); return null; }
+
+    const metadata = { name: 'img_' + Date.now() + '_' + file.name, parents: [folderId] };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', file);
+
+    const uploadRes = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form }
+    );
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json();
+      console.error('Drive upload error:', err);
+      _driveProgressToast('Upload failed', 'error');
+      return null;
+    }
+    const fileData = await uploadRes.json();
+    const fileId = fileData.id;
+
+    // Make publicly readable
+    await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+
+    const directUrl = 'https://drive.google.com/uc?export=view&id=' + fileId;
+    _driveProgressToast('Image uploaded!', 'success');
+    return directUrl;
+  } catch(err) {
+    console.error('Drive upload error:', err);
+    _driveProgressToast('Upload failed: ' + err.message, 'error');
+    return null;
+  }
+}
+
+async function _handleShowcaseImageFile(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const t = window._showcaseTarget;
-    if (!t) return;
-    const proj = S.projects.find(p => p.id === t.projId);
-    if (!proj) return;
-    const line = (proj.lines || []).find(l => l.id === t.lineId);
-    if (!line) return;
-    const field = line.fields.find(f => f.id === t.fieldId);
-    if (!field) return;
-    if (!field.items) field.items = [];
-    field.items.push({ src: ev.target.result, caption: '', url: '', urlName: '' });
-    save();
-    renderProjects();
-  };
-  reader.readAsDataURL(file);
+  const t = window._showcaseTarget;
+  if (!t) return;
   e.target.value = '';
+
+  const driveUrl = await _uploadImageToDrive(file);
+  if (!driveUrl) return;
+
+  const proj = S.projects.find(p => p.id === t.projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === t.lineId);
+  if (!line) return;
+  const field = line.fields.find(f => f.id === t.fieldId);
+  if (!field) return;
+  if (!field.items) field.items = [];
+  field.items.push({ src: driveUrl, caption: '', url: '', urlName: '' });
+  save();
+  renderProjects();
 }
 
 function _saveShowcaseCaption(projId, lineId, fieldId, idx, html) {
@@ -8700,31 +8791,30 @@ function _bubFieldInsertImage(projId, lineId, fieldId) {
   }
 }
 
-function _bubHandleImageFile(e) {
+async function _bubHandleImageFile(e) {
   // Restore original handler for Section 1
   const input = e.target;
   input.onchange = function(ev) { _cellHandleImageFile(ev.target); };
 
   const file = input.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const src = ev.target.result;
-    const target = window._bubImgTarget;
-    if (!target) return;
-    const fieldEl = document.querySelector(
-      `[data-proj="${target.projId}"][data-line="${target.lineId}"][data-field="${target.fieldId}"]`
-    );
-    if (!fieldEl) return;
-    const img = document.createElement('img');
-    img.src = src;
-    img.className = 'cell-img';
-    img.style.cssText = 'max-width:100%;width:160px;height:auto;border-radius:6px;margin:4px 2px;cursor:pointer;display:inline-block;';
-    fieldEl.appendChild(img);
-    _saveFieldContent(target.projId, target.lineId, target.fieldId, fieldEl.innerHTML);
-  };
-  reader.readAsDataURL(file);
   input.value = '';
+
+  const driveUrl = await _uploadImageToDrive(file);
+  if (!driveUrl) return;
+
+  const target = window._bubImgTarget;
+  if (!target) return;
+  const fieldEl = document.querySelector(
+    `[data-proj="${target.projId}"][data-line="${target.lineId}"][data-field="${target.fieldId}"]`
+  );
+  if (!fieldEl) return;
+  const img = document.createElement('img');
+  img.src = driveUrl;
+  img.className = 'cell-img';
+  img.style.cssText = 'max-width:100%;width:160px;height:auto;border-radius:6px;margin:4px 2px;cursor:pointer;display:inline-block;';
+  fieldEl.appendChild(img);
+  _saveFieldContent(target.projId, target.lineId, target.fieldId, fieldEl.innerHTML);
 }
 
 function _bubFieldInsertUrl(projId, lineId, fieldId) {
