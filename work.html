@@ -1737,7 +1737,7 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 }
 .bub-line-fields {
   display: grid;
-  grid-template-columns: 0.6fr 0.6fr 180px 1fr;
+  grid-template-columns: 0.3fr 0.7fr 160px 1fr;
   gap: 10px;
   align-items: start;
   width: 100%;
@@ -1777,8 +1777,9 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
 /* Tablet — 3 cols, note wraps below */
 @media (max-width: 900px) {
   .bub-line-fields {
-    grid-template-columns: 1fr 1fr 160px;
+    grid-template-columns: 0.4fr 0.6fr 140px;
   }
+  .bub-field[data-is-note="true"],
   .bub-field-note {
     grid-column: 1 / -1 !important;
   }
@@ -1792,7 +1793,8 @@ html.dark .bub-chevron:hover { background: rgba(255,255,255,0.08); }
   .bub-line-fields {
     grid-template-columns: 1fr 1fr;
   }
-  .bub-field[data-field-type="progress"],
+  .bub-field:nth-child(3),
+  .bub-field[data-is-note="true"],
   .bub-field-note {
     grid-column: 1 / -1 !important;
     max-width: 100%;
@@ -1902,6 +1904,7 @@ body.edit-mode .bub-add-line-btn,
 body.edit-mode .bub-line-actions,
 body.edit-mode .bub-add-field-btn,
 body.edit-mode .bub-remove-line-btn,
+body.edit-mode .bub-add-note-btn,
 body.edit-mode .bub-field-del {
   display: inline-flex !important;
 }
@@ -1926,23 +1929,55 @@ body.edit-mode .bub-field-del {
   padding-top: 4px;
   flex-shrink: 0;
 }
+/* Line bottom action bar */
+.bub-line-bottom {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+body.edit-mode .bub-line-bottom { display: flex !important; }
+.bub-add-note-btn,
 .bub-add-field-btn,
 .bub-remove-line-btn {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid #ddd;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
   background: none;
   cursor: pointer;
   color: #888;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
+  display: none;
 }
-.bub-remove-line-btn:hover { border-color: #e53; color: #e53; }
+.bub-add-note-btn,
+.bub-add-field-btn {
+  border: 1px dashed rgba(128,128,128,0.4);
+}
+.bub-add-note-btn:hover,
+.bub-add-field-btn:hover { border-color: #6B78B4; color: #6B78B4; }
+.bub-remove-line-btn {
+  border: none;
+  background: rgba(220,50,50,0.08);
+  color: #e53;
+}
+.bub-remove-line-btn:hover { background: rgba(220,50,50,0.18); }
+/* Extra note rows (2nd, 3rd, … notes) */
+.bub-extra-notes {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.bub-extra-note-row {
+  width: 100%;
+}
+.bub-extra-note-row .bub-field {
+  width: 100% !important;
+}
+.bub-extra-note-row .bub-field-content {
+  min-height: 60px !important;
+}
 /* Progress slider locked in view mode */
 body:not(.edit-mode) .bub-progress-slider { pointer-events: none; }
 /* Field action buttons (image / link) */
@@ -8171,22 +8206,45 @@ function _renderBubbleLines(proj) {
 }
 
 function _renderLine(proj, line, lineIdx) {
-  const fields = line.fields || [];
-  const fieldsHtml = fields.map((field, fi) => _renderField(proj, line, field, fi)).join('');
+  const allFields = line.fields || [];
+
+  // Separate field types
+  const nameField      = allFields.find(f => !f.isNote && !f.isShowcase && f.type !== 'progress' && f.label?.toLowerCase() === 'name');
+  const showcaseField  = allFields.find(f => f.isShowcase || f.label?.toLowerCase() === 'showcase');
+  const progressField  = allFields.find(f => f.type === 'progress');
+  const noteFields     = allFields.filter(f => f.isNote || (f.label?.toLowerCase() === 'note' && f.type !== 'progress'));
+  const otherFields    = allFields.filter(f => f !== nameField && f !== showcaseField && f !== progressField && !noteFields.includes(f));
+
+  // Main row: NAME | SHOWCASE | PROGRESS | first NOTE
+  const mainRow   = [nameField, showcaseField, progressField, noteFields[0]].filter(Boolean);
+  // Extra notes: 2nd, 3rd, …
+  const extraNotes = noteFields.slice(1);
+
+  const mainRowHtml    = mainRow.map(f => _renderField(proj, line, f)).join('');
+  const extraNotesHtml = extraNotes.map(f => `<div class="bub-extra-note-row">${_renderField(proj, line, f)}</div>`).join('');
+  const otherHtml      = otherFields.map(f => _renderField(proj, line, f)).join('');
+
   return `
     <div class="bub-line" data-line-id="${line.id}">
-      <div class="bub-line-fields">${fieldsHtml}</div>
-      <div class="bub-line-actions">
-        <button
+      <div class="bub-line-fields">${mainRowHtml}</div>
+      ${extraNotes.length ? `<div class="bub-extra-notes">${extraNotesHtml}</div>` : ''}
+      ${otherHtml ? `<div class="bub-line-fields" style="margin-top:6px">${otherHtml}</div>` : ''}
+      <div class="bub-line-bottom">
+        <button class="bub-add-note-btn"
           onmousedown="event.stopPropagation()"
-          onclick="event.stopPropagation(); _addField('${proj.id}','${line.id}')"
-          class="bub-add-field-btn"
-          title="Add field">+</button>
-        <button
+          onclick="event.stopPropagation(); _addNoteField('${proj.id}','${line.id}')">
+          + Add Note
+        </button>
+        <button class="bub-add-field-btn"
           onmousedown="event.stopPropagation()"
-          onclick="event.stopPropagation(); _removeLine('${proj.id}','${line.id}')"
-          class="bub-remove-line-btn"
-          title="Remove line">×</button>
+          onclick="event.stopPropagation(); _addField('${proj.id}','${line.id}')">
+          + Add Field
+        </button>
+        <button class="bub-remove-line-btn"
+          onmousedown="event.stopPropagation()"
+          onclick="event.stopPropagation(); _removeLine('${proj.id}','${line.id}')">
+          − Remove Line
+        </button>
       </div>
     </div>
   `;
@@ -8258,7 +8316,7 @@ function _renderField(proj, line, field, fi) {
     </div>` : '';
 
   return `
-    <div class="bub-field${noteClass}" data-field-id="${field.id}" data-field-type="text">
+    <div class="bub-field${noteClass}" data-field-id="${field.id}" data-field-type="text"${isNote ? ' data-is-note="true"' : ''}>
       <div class="bub-field-label"
         contenteditable="false"
         ondblclick="if(!document.body.classList.contains('edit-mode'))return; this.contentEditable='true'; this.focus();"
@@ -8453,6 +8511,25 @@ function _addLine(projId) {
     ]
   };
   proj.lines.push(newLine);
+  save();
+  renderProjects();
+}
+
+function _addNoteField(projId, lineId) {
+  if (!document.body.classList.contains('edit-mode')) return;
+  const proj = S.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const line = (proj.lines || []).find(l => l.id === lineId);
+  if (!line) return;
+  line.fields.push({
+    id: 'note_' + Date.now(),
+    label: 'Note',
+    html: '',
+    type: 'text',
+    isNote: true,
+    date: '',
+    round: 1
+  });
   save();
   renderProjects();
 }
