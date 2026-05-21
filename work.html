@@ -5553,15 +5553,69 @@ async function forceSyncNow() {
   }
 }
 
+function _cleanSDataForCloud(data) {
+  const clean = JSON.parse(JSON.stringify(data));
+  (clean.projects || []).forEach(proj => {
+    (proj.lines || []).forEach(line => {
+      (line.fields || []).forEach(field => {
+        if (field.html) {
+          field.html = field.html.replace(
+            /<img[^>]*src="data:image[^"]*"[^>]*>/gi,
+            '[image removed — re-upload]'
+          );
+        }
+        if (field.items) {
+          field.items = field.items.map(item => {
+            if (item.src && item.src.startsWith('data:image')) {
+              return { ...item, src: '' };
+            }
+            return item;
+          });
+        }
+      });
+    });
+    if (proj.pic && proj.pic.startsWith('data:image')) proj.pic = '';
+  });
+  if (clean.weekly) {
+    const weekStr = JSON.stringify(clean.weekly);
+    if (weekStr.includes('data:image')) {
+      Object.values(clean.weekly.weeks || {}).forEach(week => {
+        Object.values(week || {}).forEach(proj => {
+          Object.values(proj || {}).forEach(cell => {
+            if (cell?.html) {
+              cell.html = cell.html.replace(
+                /<img[^>]*src="data:image[^"]*"[^>]*>/gi,
+                '[image]'
+              );
+            }
+          });
+        });
+      });
+    }
+  }
+  return clean;
+}
+
 async function saveToCloud(retries = 2) {
   if (USE_DRIVE_STORAGE) { return _saveToCloudDrive(retries); }
   _syncBtn('syncing');
   _setSyncStatus('↑ Saving…');
   try {
+    const cleanData = _cleanSDataForCloud(S);
+    const dataSize = JSON.stringify(cleanData).length;
+    const MAX_SIZE = 90000; // 90 KB safe limit
+    if (dataSize > MAX_SIZE) {
+      console.warn('Data size too large:', Math.round(dataSize / 1024) + 'KB');
+      _syncBtn('err');
+      _setSyncStatus('⚠ Data too large to sync', true);
+      showToast('Data too large — remove old content to enable sync');
+      setTimeout(() => { _syncBtn(''); }, 3000);
+      return;
+    }
     const res = await fetch(BIN_URL, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
-      body: JSON.stringify(S)
+      body: JSON.stringify(cleanData)
     });
     if (res.ok) {
       localStorage.setItem(SK_PUSHED, String(S._savedAt || Date.now()));
@@ -13322,6 +13376,38 @@ function exportInvoicePdf(item) {
     try { const raw = localStorage.getItem('fa_work_v3'); if (raw) S = JSON.parse(raw); } catch(e) {}
   }
   loadAccounts();
+
+  // One-time cleanup: strip base64 images from S data in localStorage
+  if (!localStorage.getItem('fa_base64_cleaned')) {
+    let cleaned = false;
+    (S.projects || []).forEach(proj => {
+      (proj.lines || []).forEach(line => {
+        (line.fields || []).forEach(field => {
+          if (field.html && field.html.includes('data:image')) {
+            field.html = field.html.replace(
+              /<img[^>]*src="data:image[^"]*"[^>]*>/gi,
+              '[image removed — please re-upload]'
+            );
+            cleaned = true;
+          }
+          if (field.items) {
+            field.items.forEach(item => {
+              if (item.src && item.src.startsWith('data:image')) {
+                item.src = '';
+                cleaned = true;
+              }
+            });
+          }
+        });
+      });
+    });
+    if (cleaned) {
+      save();
+      showToast('Old images cleared — please re-upload images to sync across devices');
+    }
+    localStorage.setItem('fa_base64_cleaned', '1');
+  }
+
   // Apply synced cell size preference (default xs)
   document.documentElement.style.setProperty('--cell-font', CELL_SIZES[S.cellSize || 'xs'].font);
   document.documentElement.style.setProperty('--cell-min-h', CELL_SIZES[S.cellSize || 'xs'].h);
