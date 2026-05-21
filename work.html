@@ -8592,7 +8592,7 @@ async function _uploadImageToDrive(file) {
       body: JSON.stringify({ role: 'reader', type: 'anyone' })
     });
 
-    const directUrl = 'https://drive.google.com/uc?export=view&id=' + fileId;
+    const directUrl = 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1600';
     _driveProgressToast('Image uploaded!', 'success');
     return directUrl;
   } catch(err) {
