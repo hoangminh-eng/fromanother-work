@@ -4047,6 +4047,9 @@ html.dark .recruit-chevron { color: var(--dimmer, #888888) !important; opacity: 
 html.dark .recruit-connect { color: var(--text, #e0e0e0) !important; }
 html.dark .recruit-connect h3 { color: var(--text, #ffffff) !important; }
 html.dark .recruit-connect p { color: var(--dimmer, #aaaaaa) !important; }
+html.dark #_tl-export-picker { background: var(--surface) !important; border-color: var(--border) !important; color: var(--text) !important; }
+html.dark #_tl-export-picker div, html.dark #_tl-export-picker button:not([style*="background:#141414"]) { color: var(--text) !important; }
+html.dark #_ep-port { background: var(--surface) !important; border-color: var(--border-md) !important; color: var(--dimmer) !important; }
 
 </style>
 </head>
@@ -4695,6 +4698,7 @@ async function loadState() {
         if (driveVer > localVer) {
           if (S.accounts?.length && !driveData.accounts?.length) driveData.accounts = S.accounts;
           S = driveData;
+          loadAccounts();
           localStorage.setItem('fa_work_v3', JSON.stringify(S));
           const activeTab = document.querySelector('.tab-item.active')?.id?.replace('tab-','') || 'weekly';
           switchTab(activeTab);
@@ -4818,6 +4822,7 @@ function save() {
   S._version = (S._version || 0) + 1;
   _hasUnsavedChanges = true;
   try { localStorage.setItem(SK, JSON.stringify(S)); } catch(err) {
+    if (err && err.name === 'QuotaExceededError') showToast('Storage full — remove cover images to free space');
     console.error('Error saving to localStorage:', err);
   }
   clearTimeout(cloudSaveTimer);
@@ -5004,9 +5009,10 @@ async function _driveLoad() {
 
 // One-time migration: copy JSONBin data → Drive if Drive is empty
 async function _driveMigrateFromJsonBin() {
+  if (!BIN_ID || !BIN_KEY) return false;
   try {
     const driveData = await _driveLoad();
-    if (driveData?._version) { console.log('Drive already has data — skip migration'); return false; }
+    if (driveData?._version) return false;
 
     const res = await fetch(BIN_URL + '/latest', { headers: { 'X-Master-Key': BIN_KEY } });
     if (!res.ok) return false;
@@ -5035,6 +5041,7 @@ async function _driveSilentPull() {
     if (S.accounts?.length && !cloudData.accounts?.length) cloudData.accounts = S.accounts;
 
     S = cloudData;
+    loadAccounts();
     localStorage.setItem('fa_work_v3', JSON.stringify(S));
 
     const activeTab = document.querySelector('.tab-section:not([style*="display: none"])')?.id || 'weekly';
@@ -5670,6 +5677,7 @@ function _buildBubCover(proj) {
 function _bubHandleImageFile(pId, input) {
   const file = input.files[0];
   if (!file || !file.type.startsWith('image/')) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Image too large — max 2 MB'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     const proj = S.projects.find(p => p.id === pId);
@@ -8665,10 +8673,16 @@ function importData() {
     reader.onload = ev => {
       try {
         const parsed = JSON.parse(ev.target.result);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !parsed.weekly) {
+          showToast('Invalid file — not a recognised board export'); return;
+        }
         S = parsed;
+        if (!S._weekCleanupApr2026) S._weekCleanupApr2026 = true;
+        migrate();
         save();
         renderTable();
         renderProjects();
+        loadAccounts();
         document.getElementById('share-card').classList.remove('open');
         showToast('Data imported successfully');
       } catch {
@@ -8712,10 +8726,17 @@ function copyShareText() {
 function pasteImport() {
   navigator.clipboard.readText().then(text => {
     try {
-      S = JSON.parse(text);
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !parsed.weekly) {
+        showToast('Clipboard does not contain valid board data'); return;
+      }
+      S = parsed;
+      if (!S._weekCleanupApr2026) S._weekCleanupApr2026 = true;
+      migrate();
       save();
       renderTable();
       renderProjects();
+      loadAccounts();
       document.getElementById('share-card').classList.remove('open');
       showToast('Data imported from clipboard');
     } catch {
@@ -12293,9 +12314,8 @@ function exportInvoicePdf(item) {
           // Check if migration needed — Drive empty, copy from JSONBin
           const driveData = await _driveLoad();
           if (!driveData?._version) {
-            showToast('Migrating data to Google Drive…');
-            await _driveMigrateFromJsonBin();
-            showToast('✓ Data migrated to Google Drive!');
+            const migrated = await _driveMigrateFromJsonBin();
+            if (migrated) showToast('✓ Data migrated to Google Drive!');
           }
         }
       }
