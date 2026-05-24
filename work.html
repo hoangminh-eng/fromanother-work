@@ -4413,12 +4413,12 @@ html.dark .recruit-connect p { color: var(--dimmer, #aaaaaa) !important; }
    ================================================================ */
 const SK          = 'fa_work_v3';
 const SK_PUSHED   = 'fa_last_push';   // timestamp of last successful cloud push on THIS device
-const BIN_ID  = '69e9bbca36566621a8e179bc';
-const BIN_KEY = '$2a$10$CbYI/2g6N0d0gYDWCsyiTOJ3qciyOhUvr4oWUrviTkH8uGWpaTOb2';
+const BIN_ID  = '';
+const BIN_KEY = '';
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 // ── Google Drive Storage ──────────────────────────────────────────────────────
-const USE_DRIVE_STORAGE  = false;          // ⚠ OFF — emergency rollback
+const USE_DRIVE_STORAGE  = true;
 const DRIVE_DATA_FILENAME  = 'fa_work_data.json';
 const DRIVE_FILE_ID_DEFAULT = '1K2C44qgwaONyi8HREVM03rVfgjlOIOpA'; // canonical file — keep only this one
 let   _driveFileId         = null;
@@ -5142,19 +5142,7 @@ async function _saveToCloudDrive(retries = 2) {
     if (retries > 0) {
       setTimeout(() => _saveToCloudDrive(retries - 1), 4000);
     } else {
-      // Fallback to JSONBin
-      console.warn('Drive failed — falling back to JSONBin');
-      try {
-        const res = await fetch(BIN_URL, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Master-Key': BIN_KEY },
-          body: JSON.stringify(S)
-        });
-        if (res.ok) _setSyncStatus('✓ Saved (JSONBin fallback)');
-        else showToast('Sync failed — saved locally');
-      } catch(e) {
-        showToast('Sync failed — saved locally');
-      }
+      showToast('Sync failed — saved locally');
     }
   }
 }
