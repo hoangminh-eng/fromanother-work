@@ -34,6 +34,8 @@
   --dimmest: #C8C8C2;
   --border: #E2E2DE;
   --border-md: #C4C4BE;
+  --border-dark: #8A8A84;
+  --hover: #EEEDE9;
   --cell-bg: #FFFFFF;
   --cell-wknd: #F0EFEC;
   --bubble-bg: #FFFFFF;
@@ -55,6 +57,8 @@ html.dark {
   --dimmest: #464642;
   --border: #35352F;
   --border-md: #4A4A44;
+  --border-dark: #6A6A64;
+  --hover: #2E2E2C;
   --cell-bg: #262624;
   --cell-wknd: #202020;
   --bubble-bg: #262624;
@@ -4723,7 +4727,7 @@ async function loadState() {
     if (typeof __PRELOAD_DATA !== 'undefined') {
       localData = JSON.parse(__PRELOAD_DATA);
     } else if (location.hash.startsWith('#d=')) {
-      localData = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));
+      localData = JSON.parse(decodeURIComponent(atob(location.hash.slice(3)).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
       history.replaceState(null, '', location.pathname);
     } else {
       const raw = localStorage.getItem(SK);
@@ -5081,7 +5085,7 @@ function _syncBtn(state) { // 'syncing' | 'ok' | 'err' | ''
   const btn = document.getElementById('nav-sync');
   if (!btn) return;
   btn.classList.remove('syncing','sync-ok','sync-err');
-  if (state) btn.classList.add('sync-' + state === 'syncing' ? 'syncing' : (state === 'ok' ? 'sync-ok' : 'sync-err'));
+  if (state) btn.classList.add(state === 'syncing' ? 'syncing' : (state === 'ok' ? 'sync-ok' : 'sync-err'));
   // Also handle 'syncing' explicitly
   if (state === 'syncing') btn.classList.add('syncing');
 }
@@ -5166,6 +5170,9 @@ async function forceSyncNow() {
   if (btn) btn.textContent = '⏳';
   showToast('Syncing from cloud…');
   try {
+    // Back up local data before clearing — protects against a failed cloud fetch after reload
+    const bak = localStorage.getItem('fa_work_v3');
+    if (bak) localStorage.setItem('fa_work_v3_preforcesync_bak', bak);
     localStorage.removeItem('fa_last_push');
     localStorage.removeItem('fa_work_v3');
     location.reload();
@@ -6295,7 +6302,7 @@ function renderTable() {
           const tdStyle = (tdBg || valignStyle) ? `style="${tdBg}${valignStyle}"` : '';
           const vaClass = cd.valign === 'middle' ? ' va-middle' : cd.valign === 'bottom' ? ' va-bottom' : '';
           const metaHTML = (cd.link || cd.note) ? `<div class="cell-meta">${[
-            cd.link ? `<a class="cell-meta-link" href="${cd.link}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${cd.link.replace(/^https?:\/\//, '').split('/')[0]}</a>` : '',
+            cd.link ? `<a class="cell-meta-link" href="${escAttr(_safeHref(cd.link))}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${esc(cd.link.replace(/^https?:\/\//, '').split('/')[0])}</a>` : '',
             cd.note ? `<div class="cell-meta-note">${cd.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''
           ].join('')}</div>` : '';
           return `<td ${span} ${tdStyle} class="data-cell${c.wknd?' wknd':''}${isT?' today-cell':''}${vaClass}" data-week="${wk.id}" data-proj="${proj.id}" data-col="${c.id}">
@@ -7051,10 +7058,10 @@ function updateCellMetaDisplay(td, cd) {
     td.appendChild(metaEl);
   }
   metaEl.innerHTML = [
-    cd.link ? `<a class="cell-meta-link" href="${cd.link}" target="_blank" rel="noopener">
+    cd.link ? `<a class="cell-meta-link" href="${escAttr(_safeHref(cd.link))}" target="_blank" rel="noopener">
       <svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg>
-      ${cd.link.replace(/^https?:\/\//, '').split('/')[0]}</a>` : '',
-    cd.note ? `<div class="cell-meta-note">${cd.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''
+      ${esc(cd.link.replace(/^https?:\/\//, '').split('/')[0])}</a>` : '',
+    cd.note ? `<div class="cell-meta-note">${esc(cd.note)}</div>` : ''
   ].join('');
 }
 
@@ -7080,7 +7087,7 @@ function pasteCell() {
       if (tlcol === 'tl-task') return; // skip task name column
       const proj = (S.timeline.projects||[]).find(p => p.id === tlproj);
       if (!proj) return;
-      const row = (proj.rows||[]).find(r => r.id === tlrow);
+      const row = findRowById(proj, tlrow);
       if (!row) return;
       if (!row.cells) row.cells = {};
       row.cells[tlcol] = {...copiedCell};
@@ -8584,7 +8591,7 @@ function postCommentForm(pId, formId) {
       badge.className = 'cmt-badge';
       actions.insertBefore(badge, actions.firstChild);
     }
-    if (badge) badge.textContent = proj.comments.length;
+    if (badge) badge.textContent = `💬 ${proj.comments.length}`;
   }
 }
 
@@ -8613,6 +8620,10 @@ function esc(s) {
 }
 function escAttr(s) {
   return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _safeHref(url) {
+  if (!url) return '';
+  return /^javascript:/i.test(url.trim()) ? '#' : url;
 }
 
 /* ================================================================
@@ -9061,7 +9072,7 @@ function loadTitles() {
     const t = JSON.parse(raw);
     ['eyebrow-weekly','title-weekly','eyebrow-timeline','title-timeline','eyebrow-overview','title-overview'].forEach(id => {
       const el = document.getElementById(id);
-      if (el && t[id]) el.innerHTML = t[id];
+      if (el && t[id]) el.textContent = t[id];
     });
   } catch(err) { console.error('Error loading titles:', err); }
 }
@@ -9546,7 +9557,7 @@ function makeNoteCard(note) {
       </div>
     </div>
     <div class="acct-note-body">
-      <div class="acct-note-text" contenteditable="true" spellcheck="false">${note.body ? note.body.replace(/\n/g, '<br>') : ''}</div>
+      <div class="acct-note-text" contenteditable="true" spellcheck="false">${note.body ? esc(note.body).replace(/\n/g, '<br>') : ''}</div>
     </div>`;
 
   attachCardToggle(div);
@@ -9958,7 +9969,7 @@ function renderTlTable(proj, tableWrap) {
           const metaEl = document.createElement('div');
           metaEl.className = 'cell-meta';
           metaEl.innerHTML = [
-            cd.link ? `<a class="cell-meta-link" href="${cd.link}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${cd.link.replace(/^https?:\/\//, '').split('/')[0]}</a>` : '',
+            cd.link ? `<a class="cell-meta-link" href="${escAttr(_safeHref(cd.link))}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${esc(cd.link.replace(/^https?:\/\//, '').split('/')[0])}</a>` : '',
             cd.note ? `<div class="cell-meta-note">${cd.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''
           ].join('');
           td.appendChild(metaEl);
@@ -10009,7 +10020,7 @@ function renderTlTable(proj, tableWrap) {
           const metaEl = document.createElement('div');
           metaEl.className = 'cell-meta';
           metaEl.innerHTML = [
-            cd.link ? `<a class="cell-meta-link" href="${cd.link}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${cd.link.replace(/^https?:\/\//, '').split('/')[0]}</a>` : '',
+            cd.link ? `<a class="cell-meta-link" href="${escAttr(_safeHref(cd.link))}" target="_blank" rel="noopener"><svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7L7 4"/><path d="M5.5 2.5L6.5 1.5a2.12 2.12 0 013 3L8 6"/><path d="M5.5 8.5L4.5 9.5a2.12 2.12 0 01-3-3L3 5"/></svg> ${esc(cd.link.replace(/^https?:\/\//, '').split('/')[0])}</a>` : '',
             cd.note ? `<div class="cell-meta-note">${cd.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''
           ].join('');
           td.appendChild(metaEl);
@@ -11053,7 +11064,7 @@ function _doExportTl(pId) {
        0.8em scales relative to the inherited 11px base → ~8.8px                ────── */
     tr.data-row td,
     tr.data-row th {
-      font-size: 0.49em !important;
+      font-size: 0.8em !important;
     }
 
     /* ── CONTENT ROW HEIGHT +35% — padding 6px → 8px top/bottom (6 × 1.35 = 8.1) ──
@@ -11257,10 +11268,9 @@ function makePayBubble(item) {
   const isoToDMY = v => { const m = v && v.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : (v || ''); };
   const dmyToISO = v => { const m = v && v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : (v || ''); };
 
-  // Normalise any existing ISO-stored dueDate to DD/MM/YYYY on first render
+  // Normalise any existing ISO-stored dueDate to DD/MM/YYYY (no save — will persist on next user action)
   if (item.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(item.dueDate)) {
     item.dueDate = isoToDMY(item.dueDate);
-    save();
   }
 
   const dateInput = document.createElement('input');
@@ -11722,21 +11732,19 @@ function buildInvoiceBody(body, item) {
   body.appendChild(footer);
 
   // Notes (optional)
-  if (true) {
-    const notesSec = document.createElement('div');
-    notesSec.className = 'inv-textarea-field';
-    const notesLbl = document.createElement('div');
-    notesLbl.className = 'inv-field-label'; notesLbl.textContent = 'Notes (Optional)';
-    const notesEl = document.createElement('div');
-    notesEl.className = 'inv-textarea';
-    notesEl.setAttribute('contenteditable', 'true');
-    notesEl.setAttribute('data-ph', 'Additional notes\u2026');
-    notesEl.innerHTML = item.notes || '';
-    notesEl.addEventListener('mousedown', e => e.stopPropagation());
-    notesEl.addEventListener('blur', () => { item.notes = notesEl.innerHTML; save(); });
-    notesSec.appendChild(notesLbl); notesSec.appendChild(notesEl);
-    body.appendChild(notesSec);
-  }
+  const notesSec = document.createElement('div');
+  notesSec.className = 'inv-textarea-field';
+  const notesLbl = document.createElement('div');
+  notesLbl.className = 'inv-field-label'; notesLbl.textContent = 'Notes (Optional)';
+  const notesEl = document.createElement('div');
+  notesEl.className = 'inv-textarea';
+  notesEl.setAttribute('contenteditable', 'true');
+  notesEl.setAttribute('data-ph', 'Additional notes\u2026');
+  notesEl.innerHTML = item.notes || '';
+  notesEl.addEventListener('mousedown', e => e.stopPropagation());
+  notesEl.addEventListener('blur', () => { item.notes = notesEl.innerHTML; save(); });
+  notesSec.appendChild(notesLbl); notesSec.appendChild(notesEl);
+  body.appendChild(notesSec);
 
   // ── Signature section ──
   const sigSec = document.createElement('div');
@@ -12549,7 +12557,6 @@ function _quotDefaultVersion() {
 
 /* ── Auto-calc ── */
 function _quotCalc(vd) {
-  console.log('[quotCalc] starting');
   let footerTotal = 0;
   const groupTotals = (vd.groups||[]).map((g, gi) => {
     let gt = 0;
@@ -12559,33 +12566,24 @@ function _quotCalc(vd) {
       const qty = _quotParseNum(r.cells.qty);
       let rowTotal;
       if (uc > 0 && qty > 0) {
-        // Both UnitCost and Qty are set — always compute from them.
-        // This fixes stale totalCost='0' rows being counted as zero.
         rowTotal = uc * qty;
-        r.cells.totalCost = String(rowTotal); // keep stored value in sync
+        r.cells.totalCost = String(rowTotal);
       } else {
-        // Fallback: use stored totalCost if it's a real non-zero value
         const storedTC = r.cells.totalCost;
         if (storedTC && storedTC !== '' && storedTC !== '0') {
           rowTotal = _quotParseNum(storedTC);
         } else {
-          rowTotal = uc * qty; // covers case where only uc or only qty is set
+          rowTotal = uc * qty;
         }
       }
-      console.log(`[quotCalc] g${gi} r${ri}: uc=${uc} qty=${qty} rowTotal=${rowTotal}`);
       gt += rowTotal;
     });
-    // If user manually typed a total in the group header, honour it
     if (g.manualTotal && g.manualTotal !== '') gt = _quotParseNum(g.manualTotal);
-    console.log(`[quotCalc] group ${gi} total:`, gt);
     footerTotal += gt;
     return gt;
   });
-  // Management fee: auto = 10% of footerTotal unless user explicitly typed a number.
-  // Ignore legacy 'managementFee' field (stored "10%" text that parses as 10, not 10%).
   const mfRaw = vd.footer && vd.footer.managementFeeManual !== undefined ? vd.footer.managementFeeManual : '';
   const mf = (mfRaw !== '' && _quotParseNum(mfRaw) > 0) ? _quotParseNum(mfRaw) : footerTotal * 0.1;
-  console.log('[quotCalc] footerTotal:', footerTotal, 'mf:', mf, 'grandTotal:', footerTotal + mf);
   return {groupTotals, footerTotal, managementFee: mf, grandTotal: footerTotal + mf};
 }
 
@@ -13060,9 +13058,8 @@ function _quotEvalFormula(expr, vd) {
 }
 
 function quotOnBlur(el, projId, ver, gi, ri, ci, colId) {
-  console.log('[quotOnBlur] fired:', 'col=', colId, 'gi=', gi, 'ri=', ri, 'value=', el.innerText);
   const proj=_quotFindProj(projId), vd=_quotFindVer(proj,ver);
-  if (!vd||!vd.groups[gi]||!vd.groups[gi].rows[ri]) { console.warn('[quotOnBlur] vd or row missing'); return; }
+  if (!vd||!vd.groups[gi]||!vd.groups[gi].rows[ri]) return;
   const raw=el.innerText.trim();
   // Store raw formula if starts with '='
   if (!vd.formulas) vd.formulas={};
@@ -13759,13 +13756,13 @@ function quotAddDetailRow(projId, ver) {
   if (!vd.detailRows) vd.detailRows=[];
   vd.detailRows.push({id:_qid(),category:'',description:''}); save();
   const panel=document.getElementById('quot-panel-'+projId+'-'+ver);
-  if (panel) panel.outerHTML=renderQuotVerPanel(proj,ver); else renderQuotation();
+  if (panel) { const tmp=document.createElement('div'); tmp.innerHTML=renderQuotVerPanel(proj,ver); panel.replaceWith(tmp.firstElementChild); } else renderQuotation();
 }
 function quotDeleteDetailRow(projId, ver, rowId) {
   const proj=_quotFindProj(projId), vd=_quotFindVer(proj,ver); if (!vd) return;
   vd.detailRows=(vd.detailRows||[]).filter(r=>r.id!==rowId); save();
   const panel=document.getElementById('quot-panel-'+projId+'-'+ver);
-  if (panel) panel.outerHTML=renderQuotVerPanel(proj,ver); else renderQuotation();
+  if (panel) { const tmp=document.createElement('div'); tmp.innerHTML=renderQuotVerPanel(proj,ver); panel.replaceWith(tmp.firstElementChild); } else renderQuotation();
 }
 
 function renderQuotNotes(projId, ver, vd) {
@@ -14589,7 +14586,7 @@ function _recruitTableHTML(job) {
       const colIdx = job.colMap[col] !== undefined ? job.colMap[col] : -1;
       return `<td contenteditable="true"
         onblur="_recruitSaveCell('${job.tabName.replace(/'/g,"\\'")}',${a._rowIndex},'${col.replace(/'/g,"\\'")}',this.innerText,${colIdx})"
-        >${val}</td>`;
+        >${esc(val)}</td>`;
     }).join('');
 
     const status     = a['STATUS'] || 'Applied';
