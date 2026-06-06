@@ -8512,6 +8512,37 @@ function _addShowcaseImage(projId, lineId, fieldId) {
 }
 
 /* ── Drive image upload helpers ── */
+function _fixDriveImageUrls() {
+  if (localStorage.getItem('fa_drive_urls_fixed')) return;
+  let changed = false;
+  (S.projects || []).forEach(proj => {
+    (proj.lines || []).forEach(line => {
+      (line.fields || []).forEach(field => {
+        if (field.items) {
+          field.items.forEach(item => {
+            if (item.src && item.src.includes('drive.google.com/uc')) {
+              const match = item.src.match(/id=([a-zA-Z0-9_-]+)/);
+              if (match) {
+                item.src = 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1600';
+                changed = true;
+              }
+            }
+          });
+        }
+        if (field.html && field.html.includes('drive.google.com/uc')) {
+          field.html = field.html.replace(
+            /https:\/\/drive\.google\.com\/uc\?export=view&id=([a-zA-Z0-9_-]+)/g,
+            'https://drive.google.com/thumbnail?id=$1&sz=w1600'
+          );
+          changed = true;
+        }
+      });
+    });
+  });
+  if (changed) { save(); showToast('Images updated ✓'); }
+  localStorage.setItem('fa_drive_urls_fixed', '1');
+}
+
 async function _getDriveImageFolder(token) {
   try {
     const q = encodeURIComponent(
@@ -13407,6 +13438,9 @@ function exportInvoicePdf(item) {
     }
     localStorage.setItem('fa_base64_cleaned', '1');
   }
+
+  // One-time migration: update old Drive export=view URLs to thumbnail format
+  _fixDriveImageUrls();
 
   // Apply synced cell size preference (default xs)
   document.documentElement.style.setProperty('--cell-font', CELL_SIZES[S.cellSize || 'xs'].font);
