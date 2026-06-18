@@ -4479,6 +4479,8 @@ html.dark .recruit-connect p { color: var(--dimmer, #aaaaaa) !important; }
     <button class="nav-share-btn" id="nav-share" onclick="toggleShareCard()" style="display:none">↑ Share</button>
     <span id="sync-status" style="font-size:10px;color:#aaa;margin-right:2px;white-space:nowrap;"></span>
     <button class="nav-lock-btn" id="nav-force-sync" onclick="forceSyncNow()" title="Force sync from cloud — pulls latest cloud data">☁</button>
+    <button class="nav-theme-btn" onclick="exportDataBackup()" title="Download full data backup as JSON" style="font-size:11px;padding:6px 10px;">↓ Backup</button>
+    <button class="nav-theme-btn" onclick="importDataBackup()" title="Restore data from JSON backup file" style="font-size:11px;padding:6px 10px;">↑ Restore</button>
   </div>
 </nav>
 
@@ -5594,6 +5596,61 @@ function _cleanSDataForCloud(data) {
     }
   }
   return clean;
+}
+
+function exportDataBackup() {
+  try {
+    const json = JSON.stringify(S, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date();
+    const stamp = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0') + '_' +
+      String(d.getHours()).padStart(2,'0') +
+      String(d.getMinutes()).padStart(2,'0');
+    a.href = url;
+    a.download = 'fa_work_backup_' + stamp + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup downloaded ✓');
+  } catch(err) {
+    showToast('Export failed: ' + err.message);
+  }
+}
+
+function importDataBackup() {
+  if (!document.body.classList.contains('edit-mode')) {
+    showToast('Unlock editing first');
+    return;
+  }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data || typeof data !== 'object' || (!data.weekly && !data.projects && !data.timeline)) {
+        showToast('Invalid backup file');
+        return;
+      }
+      const confirmed = confirm(
+        'Replace ALL current data with backup from ' + file.name + '?\n\nThis cannot be undone.'
+      );
+      if (!confirmed) return;
+      S = data;
+      save();
+      await saveToCloud();
+      location.reload();
+    } catch(err) {
+      showToast('Import failed: ' + err.message);
+    }
+  };
+  input.click();
 }
 
 async function saveToCloud(retries = 2) {
@@ -13407,37 +13464,6 @@ function exportInvoicePdf(item) {
     try { const raw = localStorage.getItem('fa_work_v3'); if (raw) S = JSON.parse(raw); } catch(e) {}
   }
   loadAccounts();
-
-  // One-time cleanup: strip base64 images from S data in localStorage
-  if (!localStorage.getItem('fa_base64_cleaned')) {
-    let cleaned = false;
-    (S.projects || []).forEach(proj => {
-      (proj.lines || []).forEach(line => {
-        (line.fields || []).forEach(field => {
-          if (field.html && field.html.includes('data:image')) {
-            field.html = field.html.replace(
-              /<img[^>]*src="data:image[^"]*"[^>]*>/gi,
-              '[image removed — please re-upload]'
-            );
-            cleaned = true;
-          }
-          if (field.items) {
-            field.items.forEach(item => {
-              if (item.src && item.src.startsWith('data:image')) {
-                item.src = '';
-                cleaned = true;
-              }
-            });
-          }
-        });
-      });
-    });
-    if (cleaned) {
-      save();
-      showToast('Old images cleared — please re-upload images to sync across devices');
-    }
-    localStorage.setItem('fa_base64_cleaned', '1');
-  }
 
   // One-time migration: update old Drive export=view URLs to thumbnail format
   _fixDriveImageUrls();
