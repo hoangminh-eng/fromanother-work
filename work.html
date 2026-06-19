@@ -6247,8 +6247,6 @@ function switchTab(id) {
   if (id !== 'accounts') acctUnlocked = false;
   // Lock quotation when navigating away
   if (id !== 'quotation') quotUnlocked = false;
-  // Lock payment when navigating away
-  if (id !== 'payments') _payUnlocked = false;
   // Intercept vault access
   if (id === 'accounts' && !acctUnlocked) {
     showAcctPinModal('enter');
@@ -9986,6 +9984,7 @@ function toggleEditMode() {
     // Currently unlocked — lock immediately, no PIN
     document.body.classList.remove('edit-mode');
     _setLockIcon(false);
+    _payUnlocked = false;
     const ns = document.getElementById('nav-share');
     if (ns) ns.style.display = 'none';
     setVaultEditable(false);
@@ -13652,7 +13651,7 @@ function payPinSubmit() {
 }
 function _payLockNow() {
   _payUnlocked = false;
-  switchTab('weekly');
+  showPayPinModal();
 }
 document.addEventListener('keydown', e => {
   const modal = document.getElementById('pay-pin-modal');
