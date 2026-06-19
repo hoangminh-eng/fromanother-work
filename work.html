@@ -13487,16 +13487,20 @@ function exportInvoicePdf(item) {
   localStorage.removeItem('fa_panel_states');
   // ────────────────────────────────────────────────────────────────────────────
 
-  renderTable();
-  renderProjects();
-  // _restorePanelStates() intentionally removed — sub-panels always start closed
-  renderTimeline();
-  initEditableTitles();
-  // Init quotation state if missing
-  if (!S.quotation) S.quotation = { projects: [] };
+  try {
+    renderTable();
+    renderProjects();
+    // _restorePanelStates() intentionally removed — sub-panels always start closed
+    renderTimeline();
+    initEditableTitles();
+    // Init quotation state if missing
+    if (!S.quotation) S.quotation = { projects: [] };
 
-  _recruitCheckAuthReturn();
-  switchTab('weekly');
+    _recruitCheckAuthReturn();
+    switchTab('weekly');
+  } catch(renderErr) {
+    console.error('Boot render error:', renderErr);
+  }
 
   // Global keydown blocker — prevents any keyboard input when page is locked
   document.addEventListener('keydown', e => {
@@ -13522,7 +13526,7 @@ function exportInvoicePdf(item) {
   if (_loadElapsed < 500) {
     await new Promise(r => setTimeout(r, 500 - _loadElapsed));
   }
-  hideLoading();
+  hideLoading(); // always called — render errors caught above
   // Sync lock icon to restored edit-mode state
   _setLockIcon(document.body.classList.contains('edit-mode'));
   // Show sync feedback after render
