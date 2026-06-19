@@ -13482,7 +13482,8 @@ function exportInvoicePdf(item) {
   if (S.payments && S.payments.items) S.payments.items.forEach(i => { i.collapsed = true; });
   // Section 6 — Quotation project cards
   if (S.quotation) (S.quotation.projects || []).forEach(p => { p.expanded = false; });
-  // Section 3 — Overview sub-panels (stored in localStorage)
+  // Section 3 — Overview bubbles (force collapsed on every load)
+  (S.projects || []).forEach(p => { p.bubOpen = false; });
   localStorage.removeItem('fa_panel_states');
   // ────────────────────────────────────────────────────────────────────────────
 
@@ -13621,7 +13622,6 @@ function payPinClose() {
 }
 function payPinCancel() {
   payPinClose();
-  switchTab('weekly');
 }
 function payPinKey(d) {
   if (_payPinEntry.length >= 3) return;
