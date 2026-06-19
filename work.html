@@ -5342,40 +5342,23 @@ async function _driveSave(data) {
   }
 }
 
-// Read from Drive — public read via API key, no auth required
+// Read from Drive — OAuth token only (API key causes CORS/403 on private files)
 async function _driveLoad() {
+  const tokenData = JSON.parse(localStorage.getItem('fa_recruit_token') || 'null');
+  const token = tokenData?.token;
+  if (!token) { console.warn('No Drive token — using local'); return null; }
+  if (tokenData.expiry && tokenData.expiry < Date.now()) {
+    console.warn('Drive token expired — using local'); return null;
+  }
+  const fileId = localStorage.getItem('fa_drive_file_id') || DRIVE_FILE_ID_DEFAULT;
   try {
-    let fileId = _driveFileId || localStorage.getItem('fa_drive_file_id');
-
-    // If no cached fileId, need auth to find/create it
-    if (!fileId) {
-      const token = await _ensureValidToken();
-      if (token) fileId = await _driveGetOrCreateFile();
-      if (!fileId) return null;
-    }
-
-    // Try public read first (API key)
-    const apiKeyRes = await fetch(
-      'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media&key=' + RECRUIT_API_KEY,
-      { cache: 'no-store' }
-    ).catch(() => null);
-
-    if (apiKeyRes?.ok) return await apiKeyRes.json();
-
-    // API key blocked or failed — fall back to authenticated read
-    const token = await _ensureValidToken();
-    if (!token) return null;
-
-    const authRes = await fetch(
+    const res = await fetch(
       'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
       { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }
     );
-    if (!authRes.ok) return null;
-    return await authRes.json();
-  } catch(err) {
-    console.error('Drive load error:', err);
-    return null;
-  }
+    if (!res.ok) { console.warn('Drive load failed:', res.status); return null; }
+    return await res.json();
+  } catch(err) { console.warn('Drive load error:', err); return null; }
 }
 
 // One-time migration: copy JSONBin data → Drive if Drive is empty
@@ -13461,45 +13444,41 @@ function exportInvoicePdf(item) {
   } catch(err) {
     console.error('loadState failed:', err);
     try { const raw = localStorage.getItem('fa_work_v3'); if (raw) S = JSON.parse(raw); } catch(e) {}
+  } finally {
+    // ALWAYS proceed — loadState outcome does not block render
   }
-  loadAccounts();
-
-  // One-time migration: update old Drive export=view URLs to thumbnail format
-  _fixDriveImageUrls();
-
-  // Apply synced cell size preference (default xs)
-  document.documentElement.style.setProperty('--cell-font', CELL_SIZES[S.cellSize || 'xs'].font);
-  document.documentElement.style.setProperty('--cell-min-h', CELL_SIZES[S.cellSize || 'xs'].h);
-  document.querySelectorAll('.sz-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['xs','sm','md'][i] === (S.cellSize || 'xs'));
-  });
-  initColorSwatches();
-
-  // ── Force all bubbles collapsed on every page load ──────────────────────────
-  // Section 2 — Timeline project cards
-  (S.timeline && S.timeline.projects || []).forEach(p => { p.open = false; });
-  // Section 4 — Payment invoice items
-  if (S.payments && S.payments.items) S.payments.items.forEach(i => { i.collapsed = true; });
-  // Section 6 — Quotation project cards
-  if (S.quotation) (S.quotation.projects || []).forEach(p => { p.expanded = false; });
-  // Section 3 — Overview bubbles (force collapsed on every load)
-  (S.projects || []).forEach(p => { p.bubOpen = false; });
-  localStorage.removeItem('fa_panel_states');
-  // ────────────────────────────────────────────────────────────────────────────
 
   try {
+    loadAccounts();
+
+    // One-time migration: update old Drive export=view URLs to thumbnail format
+    _fixDriveImageUrls();
+
+    // Apply synced cell size preference (default xs)
+    document.documentElement.style.setProperty('--cell-font', CELL_SIZES[S.cellSize || 'xs'].font);
+    document.documentElement.style.setProperty('--cell-min-h', CELL_SIZES[S.cellSize || 'xs'].h);
+    document.querySelectorAll('.sz-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', ['xs','sm','md'][i] === (S.cellSize || 'xs'));
+    });
+    initColorSwatches();
+
+    // ── Force all bubbles collapsed on every page load ──────────────────────────
+    (S.timeline && S.timeline.projects || []).forEach(p => { p.open = false; });
+    if (S.payments && S.payments.items) S.payments.items.forEach(i => { i.collapsed = true; });
+    if (S.quotation) (S.quotation.projects || []).forEach(p => { p.expanded = false; });
+    (S.projects || []).forEach(p => { p.bubOpen = false; });
+    localStorage.removeItem('fa_panel_states');
+    // ────────────────────────────────────────────────────────────────────────────
+
     renderTable();
     renderProjects();
-    // _restorePanelStates() intentionally removed — sub-panels always start closed
     renderTimeline();
     initEditableTitles();
-    // Init quotation state if missing
     if (!S.quotation) S.quotation = { projects: [] };
-
     _recruitCheckAuthReturn();
     switchTab('weekly');
-  } catch(renderErr) {
-    console.error('Boot render error:', renderErr);
+  } catch(bootErr) {
+    console.error('Boot error:', bootErr);
   }
 
   // Global keydown blocker — prevents any keyboard input when page is locked
@@ -13526,7 +13505,7 @@ function exportInvoicePdf(item) {
   if (_loadElapsed < 500) {
     await new Promise(r => setTimeout(r, 500 - _loadElapsed));
   }
-  hideLoading(); // always called — render errors caught above
+  hideLoading(); // guaranteed — all errors caught above
   // Sync lock icon to restored edit-mode state
   _setLockIcon(document.body.classList.contains('edit-mode'));
   // Show sync feedback after render
